@@ -3,8 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Revup Forge ROI Calculator</title>
+    <title>Sales Development Team Setup ROI Calculator</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/chartjs-plugin-annotation/3.0.1/chartjs-plugin-annotation.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -14,6 +16,7 @@
         /* Custom styles */
         body {
             font-family: 'Inter', sans-serif;
+            scroll-behavior: smooth; /* Smooth scroll for better UX */
         }
         /* Hide number input spinners for a cleaner look */
         input[type=number]::-webkit-inner-spin-button,
@@ -31,17 +34,18 @@
             transition: max-height 0.5s ease-out; /* Smooth transition */
         }
         .explanation-content.show {
-            max-height: 1000px; /* Adjust max-height as needed for content */
+            max-height: 3400px; /* Adjust max-height as needed for content */
             transition: max-height 0.5s ease-in; /* Smooth transition */
         }
         /* Custom focus styles for accessibility */
-        input:focus, select:focus, button:focus {
+        input:focus,
+        select:focus, button:focus {
             outline: 2px solid transparent;
             outline-offset: 2px;
             box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.5); /* Tailwind blue-500 focus ring */
         }
-        /* Style disabled Illicium inputs for visual clarity */
-        .illicium-inputs-disabled input, .illicium-inputs-disabled select {
+        /* Style disabled inputs for visual clarity */
+        .inputs-disabled input, .inputs-disabled select {
             background-color: #f3f4f6; /* gray-100 */
             cursor: not-allowed;
             opacity: 0.6; /* Make them visually distinct when disabled */
@@ -63,18 +67,17 @@
             height: 100%; /* Make sections take full height of grid cell */
         }
         .input-section-column .input-content {
-             flex-grow: 1; /* Allow form content to grow */
-             display: flex;
-             flex-direction: column;
+            flex-grow: 1; /* Allow form content to grow */
+            display: flex;
+            flex-direction: column;
         }
         .input-section-column .input-content .footnote {
-             margin-top: auto; /* Push footnote to bottom */
+            margin-top: auto; /* Push footnote to bottom */
         }
         /* Result sections styling */
         .result-section-card {
             display: flex;
             flex-direction: column;
-            /* Removed height: 100% to allow auto-height based on content */
         }
         .result-section-card .result-content {
             flex-grow: 1; /* Allow result content to grow */
@@ -85,14 +88,42 @@
             margin-top: 1rem; /* mt-4 */
             margin-bottom: 1rem; /* mb-4 */
         }
+        /* Error message box style */
+        #error-message-box {
+            transition: opacity 0.5s ease-in-out;
+        }
+        /* Frame for grouping inputs */
+        .input-frame {
+            border: 1px solid #e5e7eb; /* gray-200 */
+            border-radius: 0.5rem; /* rounded-lg */
+            padding: 1rem; /* p-4 */
+            margin-top: 1rem; /* mt-4 */
+            background-color: #f9fafb; /* gray-50 */
+        }
+        .input-frame h4 {
+            font-size: 0.875rem; /* text-sm */
+            font-weight: 600; /* font-semibold */
+            color: #374151; /* gray-700 */
+            margin-bottom: 0.75rem; /* mb-3 */
+            border-bottom: 1px solid #e5e7eb;
+            padding-bottom: 0.5rem;
+        }
     </style>
 </head>
 <body class="bg-gray-50">
 
+    <div id="error-message-box" class="hidden fixed top-5 right-5 bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded shadow-md z-50" role="alert">
+        <strong class="font-bold">Error!</strong>
+        <span class="block sm:inline" id="error-message-text">Something went wrong.</span>
+        <button type="button" class="absolute top-0 bottom-0 right-0 px-4 py-3" onclick="this.parentElement.classList.add('hidden')">
+            <svg class="fill-current h-6 w-6 text-red-500" role="button" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><title>Close</title><path d="M14.348 14.849a1.2 1.2 0 0 1-1.697 0L10 11.819l-2.651 3.029a1.2 1.2 0 1 1-1.697-1.697l2.758-3.15-2.759-3.152a1.2 1.2 0 1 1 1.697-1.697L10 8.183l2.651-3.031a1.2 1.2 0 1 1 1.697 1.697l-2.758 3.152 2.758 3.15a1.2 1.2 0 0 1 0 1.698z"/></svg>
+        </button>
+    </div>
+
     <div id="pdf-content-area" class="p-4 sm:p-6 rounded-lg shadow-lg max-w-7xl mx-auto my-8 bg-white">
         <div class="mb-8 text-center">
-            <h1 class="text-3xl sm:text-4xl font-bold text-blue-900 mb-3">Revup Forge ROI Calculator</h1>
-            <p class="text-gray-600 text-base sm:text-lg max-w-3xl mx-auto">Estimate the financial impact of your SDR investment, including optional Illicium Fractional Sales Management and RevUp Force services.</p>
+            <h1 class="text-3xl sm:text-4xl font-bold text-blue-900 mb-3">Sales Development Team Setup ROI Calculator</h1>
+            <p class="text-gray-600 text-base sm:text-lg max-w-3xl mx-auto">Estimate the financial impact of your Sales Development Representative (SDR) investment, including optional fractional sales management and HR overheads.</p>
         </div>
 
         <div class="mb-8">
@@ -103,108 +134,177 @@
                     <h3 class="text-lg font-medium text-blue-800 mb-3">Core Team Structure</h3>
                     <div class="space-y-4 input-content">
                         <div>
-                            <label for="numberOfSDRs" class="block text-sm font-medium text-gray-700 mb-1">Number of SDRs</label>
+                            <label for="numberOfSDRs" class="block text-sm font-medium text-gray-700 mb-1">Number of SDRs you plan to onboard</label>
                             <input id="numberOfSDRs" type="number" name="numberOfSDRs" value="2" min="0" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                            <p class="text-xs text-gray-500 mt-1">Total SDRs on the team.</p>
+                            <p class="text-xs text-gray-500 mt-1">Total Sales Development Representatives.</p>
                         </div>
                         <div>
-                            <label for="leadsPerSDRMonth" class="block text-sm font-medium text-gray-700 mb-1">Qualified Leads / SDR / Month</label>
+                            <label for="leadsPerSDRMonth" class="block text-sm font-medium text-gray-700 mb-1">Target Qualified Leads / SDR / Month</label>
                             <input id="leadsPerSDRMonth" type="number" name="leadsPerSDRMonth" value="10" min="0" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                            <p class="text-xs text-gray-500 mt-1">Target for a fully ramped SDR.</p>
+                            <p class="text-xs text-gray-500 mt-1">Your target for a fully ramped SDR.</p>
                         </div>
-                        <div>
-                             <label for="sdrMonthlySalary" class="block text-sm font-medium text-gray-700 mb-1">Monthly SDR Base Salary (AUD)<span class="text-red-500">*</span></label>
-                             <div class="relative">
-                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                 <input id="sdrMonthlySalary" type="number" name="sdrMonthlySalary" value="2200" min="0" step="100" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                             </div>
-                              <p class="text-xs text-gray-500 mt-1">Base salary only. Excl. variable comp, payroll tax, HR overheads (covered by RevUp Force).</p>
+
+                        <div class="input-frame">
+                            <h4>SDR Compensation Package (per SDR)</h4>
+                            <div>
+                                <label for="sdrMonthlySalary" class="block text-sm font-medium text-gray-700 mb-1">Monthly SDR Salary Package (AUD, incl. Superannuation)<span class="text-red-500">*</span></label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                                    <input id="sdrMonthlySalary" type="number" name="sdrMonthlySalary" value="2000" min="0" step="100" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Enter the total monthly salary package, including superannuation.</p>
+                            </div>
+                            <div class="mt-3">
+                                <label for="sdrVariableCommission" class="block text-sm font-medium text-gray-700 mb-1">Monthly Variable Commission per SDR (AUD)</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                                    <input id="sdrVariableCommission" type="number" name="sdrVariableCommission" value="800" min="0" step="50" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                </div>
+                                <p class="text-xs text-gray-500 mt-1">Defaults to 40% of Salary Package. Adjust as needed.</p>
+                            </div>
+                            <div class="mt-3">
+                                <p class="text-sm text-gray-600">Total Monthly Compensation per SDR:</p>
+                                <p class="text-md font-semibold text-blue-700" id="output-totalSDRCompensationPerSDR">$--</p>
+                            </div>
                         </div>
+                        
                         <div>
-                            <label for="monthlySaasTools" class="block text-sm font-medium text-gray-700 mb-1">Monthly SaaS Cost / SDR (AUD)</label>
+                            <label for="monthlySaasTools" class="block text-sm font-medium text-gray-700 mb-1">Your Monthly SaaS & Tools Cost / SDR (AUD)</label>
                             <div class="relative">
                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                 <input id="monthlySaasTools" type="number" name="monthlySaasTools" value="250" min="0" step="10" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                <input id="monthlySaasTools" type="number" name="monthlySaasTools" value="350" min="0" step="10" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
                             </div>
-                            <p class="text-xs text-gray-500 mt-1">e.g., CRM, Sales Nav, Data, Telephony.</p>
+                            <p class="text-xs text-gray-500 mt-1">e.g., CRM, Sales Engagement, Data, Telephony.</p>
                         </div>
-                         <div class="footnote pt-4"> <span class="text-red-500">*</span> Note: For Philippines-based SDRs, a mandatory 13th-month salary applies (pro-rata). This is an additional cost to consider beyond the base salary entered here.
-                         </div>
+                        <div class="footnote pt-4"> <span class="text-red-500">*</span> Note: For certain regions (e.g., Philippines-based SDRs), a mandatory 13th-month salary or similar may apply. This calculator focuses on standard operational costs; consider such specific regional requirements separately.
+                        </div>
                     </div>
                 </section>
 
                 <section class="bg-white p-5 sm:p-6 rounded-lg shadow input-section-column">
                     <h3 class="text-lg font-medium text-blue-800 mb-3">Sales Performance Metrics</h3>
                     <div class="space-y-4 input-content">
-                        <div>
-                            <label for="averageDealSize" class="block text-sm font-medium text-gray-700 mb-1">Average Deal Size (AUD)</label>
-                            <div class="relative">
-                                <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                <input id="averageDealSize" type="number" name="averageDealSize" value="25000" min="0" step="100" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                        <div class="input-frame">
+                            <h4>Deal Value & Profitability</h4>
+                            <div>
+                                <label for="averageDealSize" class="block text-sm font-medium text-gray-700 mb-1">Your Average Deal Size (AUD)</label>
+                                <div class="relative">
+                                    <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                                    <input id="averageDealSize" type="number" name="averageDealSize" value="25000" min="0" step="100" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                </div>
+                            </div>
+                            <div class="mt-3">
+                                <label for="averageGrossMargin" class="block text-sm font-medium text-gray-700 mb-1">Your Average Gross Margin (%)</label>
+                                <input id="averageGrossMargin" type="number" name="averageGrossMargin" value="70" min="0" max="100" step="1" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                <p class="text-xs text-gray-500 mt-1">(Revenue - COGS) / Revenue. Impacts gross profit per deal.</p>
                             </div>
                         </div>
+
                         <div>
-                            <label for="averageSalesCycle" class="block text-sm font-medium text-gray-700 mb-1">Avg. Sales Cycle (Months)</label>
+                            <label for="averageSalesCycle" class="block text-sm font-medium text-gray-700 mb-1">Your Average Sales Cycle (Months)</label>
                             <input id="averageSalesCycle" type="number" name="averageSalesCycle" value="4" min="0" max="36" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                            <p class="text-xs text-gray-500 mt-1">Time from qualified lead to closed deal.</p>
+                            <p class="text-xs text-gray-500 mt-1">Typical time from qualified lead to closed deal.</p>
                         </div>
                         <div>
-                            <label for="leadConversionRate" class="block text-sm font-medium text-gray-700 mb-1">Lead to Customer Rate (%)</label>
-                            <input id="leadConversionRate" type="number" name="leadConversionRate" value="15" min="0" max="100" step="1" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                            <label for="leadConversionRate" class="block text-sm font-medium text-gray-700 mb-1">Your Lead to Customer Conversion Rate (%)</label>
+                            <input id="leadConversionRate" type="number" name="leadConversionRate" value="20" min="0" max="100" step="1" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                             <p class="text-xs text-gray-500 mt-1">Percentage of qualified leads that become customers.</p>
                         </div>
-                        <div>
-                            <label for="customerLifetimeValue" class="block text-sm font-medium text-gray-700 mb-1">Customer Lifetime Value Basis</label>
-                            <select id="customerLifetimeValue" name="customerLifetimeValue" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                <option value="12">12 Months (No Renewals Calculated)</option>
-                                <option value="18">18 Months (50% Year 1 Value as Renewal)</option>
-                                <option value="24" selected>24 Months (100% Year 1 Value as Renewal)</option>
-                            </select>
-                            <p class="text-xs text-gray-500 mt-1">Used to calculate renewal revenue and lifetime ROI.</p>
+                         <div class="input-frame">
+                            <h4>Customer Value & Renewals</h4>
+                            <div>
+                                <label for="customerLifetimeValue" class="block text-sm font-medium text-gray-700 mb-1">Projected LTV Basis (for LTV ROI)</label>
+                                <select id="customerLifetimeValue" name="customerLifetimeValue" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                    <option value="12">12 Months (Initial Deal GP)</option>
+                                    <option value="18">18 Months (Initial + 0.5x First Renewal GP)</option>
+                                    <option value="24" selected>24 Months (Initial + 1st Renewal GP)</option>
+                                    <option value="36">36 Months (Initial + 1st & 2nd Renewal GP)</option>
+                                </select>
+                                <p class="text-xs text-gray-500 mt-1">Determines how LTV Gross Profit is projected using renewal rates.</p>
+                            </div>
+                            <div id="year1-renewal-rate-container" class="mt-3 hidden">
+                                <label for="year1RenewalRate" class="block text-sm font-medium text-gray-700 mb-1">Year 1 Customer Renewal Rate (%)</label>
+                                <input id="year1RenewalRate" type="number" name="year1RenewalRate" value="70" min="0" max="100" step="1" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                <p class="text-xs text-gray-500 mt-1">Of Y1 customers, % renewing into Y2 (impacts Y2 revenue & LTV).</p>
+                            </div>
+                            <div id="year2-renewal-rate-container" class="mt-3 hidden">
+                                <label for="year2RenewalRate" class="block text-sm font-medium text-gray-700 mb-1">Year 2 Customer Renewal Rate (%)</label>
+                                <input id="year2RenewalRate" type="number" name="year2RenewalRate" value="50" min="0" max="100" step="1" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                <p class="text-xs text-gray-500 mt-1">Of customers who renewed into Y2, % renewing into Y3 (for 36m LTV).</p>
+                            </div>
                         </div>
+
                         <div>
                             <div class="flex items-center mt-2">
                                 <input id="isTeamFullyRamped" type="checkbox" name="isTeamFullyRamped" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
                                 <label for="isTeamFullyRamped" class="ml-2 block text-sm font-medium text-gray-700">Team Starts Fully Ramped</label>
                             </div>
-                            <p id="ramp-up-note" class="text-xs text-gray-500 mt-1 pl-6 hidden">If unchecked, assumes 0 leads in month 1, then 60% productivity for months 2-4.</p>
+                            <p id="ramp-up-note" class="text-xs text-gray-500 mt-1 pl-6 hidden">If unchecked, assumes 50% productivity for months 1-3, then 100% from month 4.</p>
                         </div>
                     </div>
                 </section>
 
                 <section class="bg-white p-5 sm:p-6 rounded-lg shadow input-section-column">
-                    <h3 class="text-lg font-medium text-blue-800 mb-3">Illicium Add-on Services</h3>
+                    <h3 class="text-lg font-medium text-blue-800 mb-3">Additional Operational Costs</h3>
                     <div class="space-y-4 input-content">
-                         <div>
-                             <label for="revUpForceCost" class="block text-sm font-medium text-gray-700 mb-1">RevUp Force Cost / SDR / Month (AUD)</label>
-                             <div class="relative">
-                                 <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                 <input id="revUpForceCost" type="number" name="revUpForceCost" value="590" min="0" step="10" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
-                             </div>
-                             <p class="text-xs text-gray-500 mt-1">Covers compliance, offshore hiring, HR & Payroll, training, development & community.</p>
-                         </div>
-
                         <div>
                             <div class="flex items-center mb-2">
-                                <input id="includeFractionalSales" type="checkbox" name="includeFractionalSales" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
-                                <label for="includeFractionalSales" class="ml-2 block text-sm font-medium text-gray-700">Include Illicium Fractional Sales Management</label>
+                                <input id="includeFractionalSalesManagement" type="checkbox" name="includeFractionalSalesManagement" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
+                                <label for="includeFractionalSalesManagement" class="ml-2 block text-sm font-medium text-gray-700">Include Fractional Sales Management</label>
                             </div>
-                            <div id="fractional-inputs-container" class="grid grid-cols-1 gap-4 pl-6 border-l-2 border-blue-100 ml-2 pt-2">
+                            <div id="fractional-sales-inputs-container" class="grid grid-cols-1 gap-4 pl-6 border-l-2 border-blue-100 ml-2 pt-2 hidden">
+                                <p class="text-xs text-gray-600 mb-2">Covers external expertise for SDR team setup, training, and/or ongoing management.</p>
                                 <div>
-                                    <label for="salesMgmtMonthlyCost" class="block text-sm font-medium text-gray-700 mb-1">Monthly Cost (AUD)</label>
+                                    <label for="fractionalOnboardingCost" class="block text-sm font-medium text-gray-700 mb-1">Monthly Cost for 4-Month Onboarding & Training Support (AUD)</label>
                                     <div class="relative">
                                         <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
-                                         <input id="salesMgmtMonthlyCost" type="number" name="salesMgmtMonthlyCost" value="5775" min="0" step="100" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                        <input id="fractionalOnboardingCost" type="number" name="fractionalOnboardingCost" value="3750" min="0" step="50" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
                                     </div>
-                                    <p class="text-xs text-gray-500 mt-1">Cost for Illicium Fractional leadership service. (Default based on SDR count)</p> </div>
+                                    <p class="text-xs text-gray-500 mt-1">Monthly cost during the initial 4-month onboarding period.</p>
+                                </div>
+                                
+                                <div class="mt-2">
+                                    <div class="flex items-center">
+                                        <input id="includeOngoingFractionalSupport" type="checkbox" name="includeOngoingFractionalSupport" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
+                                        <label for="includeOngoingFractionalSupport" class="ml-2 block text-sm font-medium text-gray-700">Include Ongoing Fractional Management Support</label>
+                                    </div>
+                                </div>
+                                <div id="ongoing-fractional-support-container" class="grid grid-cols-1 gap-4 hidden">
+                                    <div>
+                                        <label for="ongoingFractionalDuration" class="block text-sm font-medium text-gray-700 mb-1">Duration of Ongoing Support (Months)</label>
+                                        <select id="ongoingFractionalDuration" name="ongoingFractionalDuration" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
+                                            <option value="2">2 Months</option>
+                                            <option value="4">4 Months</option>
+                                            <option value="6" selected>6 Months</option>
+                                            <option value="8">8 Months</option>
+                                            <option value="10">10 Months</option>
+                                            <option value="12">12 Months</option>
+                                        </select>
+                                        <p class="text-xs text-gray-500 mt-1">How long ongoing support is provided after the initial 4-month onboarding.</p>
+                                    </div>
+                                    <div>
+                                        <label for="ongoingFractionalMonthlyCost" class="block text-sm font-medium text-gray-700 mb-1">Monthly Cost for Ongoing Support (AUD)</label>
+                                        <div class="relative">
+                                            <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                                            <input id="ongoingFractionalMonthlyCost" type="number" name="ongoingFractionalMonthlyCost" value="2750" min="0" step="50" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                        </div>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        <div>
+                            <div class="flex items-center mb-2">
+                                <input id="includeHRPayrollOverheads" type="checkbox" name="includeHRPayrollOverheads" class="h-4 w-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"/>
+                                <label for="includeHRPayrollOverheads" class="ml-2 block text-sm font-medium text-gray-700">Include HR & Payroll Overheads</label>
+                            </div>
+                            <div id="hr-payroll-inputs-container" class="grid grid-cols-1 gap-4 pl-6 border-l-2 border-blue-100 ml-2 pt-2 hidden">
                                 <div>
-                                    <label for="fractionalSalesDuration" class="block text-sm font-medium text-gray-700 mb-1">Duration</label>
-                                     <select id="fractionalSalesDuration" name="fractionalSalesDuration" class="w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500">
-                                         <option value="4">4 Months</option>
-                                         <option value="6" selected>6 Months</option>
-                                         <option value="9">9 Months</option>
-                                         <option value="12">12 Months</option>
-                                         </select>
-                                    <p class="text-xs text-gray-500 mt-1">How long the Illicium service is used (typically within Year 1).</p>
+                                    <label for="hrPayrollOverheadsPerSDR" class="block text-sm font-medium text-gray-700 mb-1">Your Monthly HR & Payroll Overheads / SDR (AUD)</label>
+                                    <div class="relative">
+                                        <span class="absolute inset-y-0 left-0 pl-3 flex items-center text-gray-500">$</span>
+                                        <input id="hrPayrollOverheadsPerSDR" type="number" name="hrPayrollOverheadsPerSDR" value="575" min="0" step="10" class="pl-7 w-full p-2 border border-gray-300 rounded shadow-sm focus:ring-blue-500 focus:border-blue-500"/>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1">e.g., Payroll processing, HR admin costs per SDR.</p>
                                 </div>
                             </div>
                         </div>
@@ -233,12 +333,12 @@
                         <div>
                             <p class="text-sm text-gray-600">Cost Per Lead (CPL)</p>
                             <p class="text-lg font-bold" id="output-costPerLead">$--</p>
-                            <p class="text-xs text-gray-500">(Y1 Base Inv. / Y1 Leads)</p> <p class="text-xs text-gray-500 hidden" id="output-cpl-note">(Excl. Frac. Mgmt Cost)</p>
+                            <p class="text-xs text-gray-500" id="output-cpl-note">(Y1 Inv. / Y1 Leads)</p>
                         </div>
                         <div>
                             <p class="text-sm text-gray-600">Cost Per Acquisition (CPA)</p>
                             <p class="text-lg font-bold" id="output-costPerAcquisition">$--</p>
-                            <p class="text-xs text-gray-500">(Y1 Base Inv. / Y1 New Deals)</p> <p class="text-xs text-gray-500 hidden" id="output-cpa-note">(Excl. Frac. Mgmt Cost)</p>
+                            <p class="text-xs text-gray-500" id="output-cpa-note">(Y1 Inv. / Y1 New Deals)</p>
                         </div>
                     </div>
                 </div>
@@ -262,8 +362,13 @@
                                 <p class="text-xs text-gray-500">(Based on <span id="output-conversionRateDisplay">--</span>% conversion)</p>
                             </div>
                             <div>
-                                <p class="text-sm text-gray-600">Year 1 Realized Revenue</p>
+                                <p class="text-sm text-gray-600">Year 1 Total Revenue</p>
                                 <p class="text-xl font-bold text-green-700" id="output-year1Revenue">$--</p>
+                            </div>
+                             <div>
+                                <p class="text-sm text-gray-600">Year 1 Gross Profit</p>
+                                <p class="text-xl font-bold text-green-600" id="output-year1GrossProfit">$--</p>
+                                <p class="text-xs text-gray-500">(Based on <span id="output-grossMarginDisplayY1">--</span>% Margin)</p>
                             </div>
                             <div class="sm:col-span-2">
                                 <p class="text-sm text-gray-600">Est. Revenue from Y1 Leads Closing in Y2</p>
@@ -285,15 +390,19 @@
                                 <p class="text-sm text-gray-600">Year 2 New Deal Revenue</p>
                                 <p class="text-lg font-bold" id="output-year2Revenue">$--</p>
                             </div>
-                            <div id="output-renewal-section" class="hidden">
-                                <p class="text-sm text-gray-600">Y1 Customer Renewals (in Y2)</p>
+                            <div id="output-renewal-section"> <p class="text-sm text-gray-600">Y1 Customer Renewals (in Y2)</p>
                                 <p class="text-lg font-bold text-green-700" id="output-year1RenewalRevenue">$--</p>
-                                <p class="text-xs text-gray-500">(Based on <span id="output-ltvDisplayRenewal">--</span>-month LTV)</p>
+                                <p class="text-xs text-gray-500">(Based on <span id="output-year1RenewalRateDisplay">--</span>% Y1 Renewal Rate)</p>
                             </div>
                             <div>
                                 <p class="text-sm text-gray-600">Total Year 2 Revenue</p>
                                 <p class="text-xl font-bold text-purple-800" id="output-year2TotalRevenue">$--</p>
                                 <p class="text-xs text-gray-500">(New Deals + Renewals)</p>
+                            </div>
+                             <div>
+                                <p class="text-sm text-gray-600">Year 2 Gross Profit</p>
+                                <p class="text-xl font-bold text-purple-700" id="output-year2GrossProfit">$--</p>
+                                <p class="text-xs text-gray-500">(Based on <span id="output-grossMarginDisplayY2">--</span>% Margin)</p>
                             </div>
                         </div>
                     </div>
@@ -305,39 +414,42 @@
                         <div class="result-content space-y-3">
                             <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
                                 <div>
-                                    <p class="text-sm text-gray-600">Avg. Monthly SDR Salary Cost</p>
-                                    <p class="text-lg font-bold" id="output-monthlySDRCost">$--</p>
+                                    <p class="text-sm text-gray-600">Avg. Monthly SDR Compensation (Team)</p>
+                                    <p class="text-lg font-bold" id="output-monthlySDRCompensationTeam">$--</p>
+                                </div>
+                                <div>
+                                    <p class="text-sm text-gray-600">Avg. Monthly SDR Team Variable Comp</p>
+                                    <p class="text-lg font-bold" id="output-avgMonthlySDRTeamVariableComp">$--</p>
                                 </div>
                                  <div>
-                                    <p class="text-sm text-gray-600">Avg. Monthly SaaS Cost</p>
-                                    <p class="text-lg font-bold" id="output-monthlySaaSCost">$--</p>
+                                    <p class="text-sm text-gray-600">Avg. Monthly SaaS Cost (Team)</p>
+                                    <p class="text-lg font-bold" id="output-monthlySaaSCostTeam">$--</p>
                                 </div>
                             </div>
 
                             <hr class="separator"/>
-
-                            <div id="illicium-investment-section" class="p-3 rounded-md bg-indigo-50" style="display: none;">
-                                <h4 class="text-md font-semibold text-indigo-800 mb-2">Illicium Investment</h4>
+                            <div id="operational-overheads-section" class="p-3 rounded-md bg-indigo-50" style="display: none;">
+                                <h4 class="text-md font-semibold text-indigo-800 mb-2">Operational Overheads (Annual)</h4>
                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                    <div>
-                                        <p class="text-sm text-gray-600">Total Annual RevUp Force Cost</p>
-                                        <p class="text-lg font-bold" id="output-total-revup-cost">$--</p>
-                                        <p class="text-xs text-gray-500">(<span id="output-sdrCountRevup">--</span> SDRs x $<span id="output-revupCostPerSDR">--</span>/mo x 12)</p>
-                                    </div>
-                                    <div id="output-illiciumFracTotalCost-section">
-                                        <p class="text-sm text-gray-600">Total Illicium Fractional Mgmt Cost</p>
-                                        <p class="text-lg font-bold" id="output-total-illicium-mgmt-cost">$--</p>
-                                        <p class="text-xs text-gray-500" id="output-illicium-mgmt-calc-note">($--/mo x -- months)</p>
+                                    <div id="output-total-fractional-sales-cost-section" style="display: none;">
+                                        <p class="text-sm text-gray-600">Total Annual Fractional Sales Management Cost</p>
+                                        <p class="text-lg font-bold" id="output-total-annual-fractional-sales-cost">$--</p>
+                                        <p class="text-xs text-gray-500" id="output-fractional-sales-cost-calc-note">(Onboarding + Ongoing)</p>
+                                   </div>
+                                    <div id="output-total-hr-payroll-overheads-section" style="display: none;">
+                                        <p class="text-sm text-gray-600">Total Annual HR & Payroll Overheads</p>
+                                        <p class="text-lg font-bold" id="output-total-annual-hr-payroll-overheads">$--</p>
+                                        <p class="text-xs text-gray-500" id="output-hr-payroll-overheads-calc-note">($--/SDR/mo x -- SDRs x 12)</p>
                                     </div>
                                 </div>
                             </div>
 
-                            <hr class="separator"/>
+                            <hr class="separator" id="operational-overheads-separator" style="display: none;"/>
 
                             <div>
                                 <p class="text-sm font-medium text-gray-700">Total Avg. Monthly Cost (Year 1)</p>
                                 <p class="text-lg font-bold text-indigo-700" id="output-monthlyTotalCost">$--</p>
-                                <p class="text-xs text-gray-500">(Avg. SDR Salary + SaaS + RevUp Force + Illicium Mgmt)</p>
+                                <p class="text-xs text-gray-500" id="output-monthly-total-cost-note">(Avg. SDR Comp + SaaS + Opt. Overheads)</p>
                             </div>
 
                             <hr class="separator"/>
@@ -346,76 +458,109 @@
                                 <div>
                                     <p class="text-sm text-gray-600">Total Year 1 Investment</p>
                                     <p class="text-lg font-bold" id="output-annualInvestment">$--</p>
-                                    <p class="text-xs text-gray-500" id="output-fractionalCostY1-note" style="display: none;">Y1 Illicium Frac. Mgmt Cost: $<span id="output-fractionalCostY1">--</span></p>
                                 </div>
                                  <div>
                                     <p class="text-sm text-gray-600">Est. Months to Breakeven</p>
                                     <p class="text-lg font-bold" id="output-monthsToBreakeven">--</p>
-                                    <p class="text-xs text-gray-500">(Cumulative Revenue ≥ Costs)</p>
+                                    <p class="text-xs text-gray-500">(Cumulative Gross Profit ≥ Costs)</p>
+                                </div>
+                            </div>
+                        </div>
+                        <hr class="separator"/>
+                        <div class="mt-1 mb-2"> <h4 class="text-md font-semibold text-blue-800 mb-2 text-center">Year 1 Financial Overview Chart</h4>
+                            <div style="position: relative; height:300px; width:100%;"> <canvas id="year1FinancialChart"></canvas>
+                            </div>
+                             <p class="text-xs text-gray-600 mt-3 text-center px-2">
+                                 Chart shows Cumulative Investment vs. Cumulative Gross Profit. Breakeven is where Gross Profit meets Investment.
+                             </p>
+                        </div>
+                    </div>
+
+                    <div class="bg-emerald-100 p-4 rounded-lg shadow-md result-section-card">
+                        <h3 class="text-lg font-medium text-blue-900 mb-2">Return on Investment (ROI)</h3>
+                        <div class="result-content space-y-4">
+                            <div class="pb-3 border-b border-gray-300 space-y-3">
+                                <h4 class="text-md font-semibold text-blue-800 mb-2">Year 1 ROI</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                    <div>
+                                        <p class="text-sm text-gray-700">Total Year 1 Investment</p>
+                                        <p class="text-lg font-bold text-blue-900" id="output-year1InvestmentDisplayROI">$--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 1 Gross Profit</p>
+                                        <p class="text-xl font-semibold text-emerald-700" id="output-year1GrossProfitDisplayROI">$--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 1 Net Profit</p>
+                                        <p class="text-xl font-semibold text-emerald-600" id="output-year1NetProfit">$--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 1 ROI</p>
+                                        <p class="text-xl font-semibold text-emerald-700" id="output-year1ROI">--%</p>
+                                        <p class="text-xs text-gray-600">(Based on Y1 Net Profit vs Y1 Investment)</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                    <div id="output-lifetimeValue1-section" class="hidden">
+                                        <p class="text-sm text-gray-600">Projected LTV of Y1 New Deals (Gross Profit)</p>
+                                        <p class="text-lg font-bold text-blue-800" id="output-year1CustomerLTVGrossProfit">$--</p>
+                                        <p class="text-xs text-gray-600">(Based on <span id="output-ltvDisplayValue1">--</span>m LTV Basis & Renewal Rates)</p>
+                                   </div>
+                                    <div id="output-lifetimeROI1-section" class="hidden">
+                                        <p class="text-sm text-gray-600">Year 1 Projected LTV ROI</p>
+                                        <p class="text-xl font-bold text-blue-800" id="output-lifetimeROI_Year1">--%</p>
+                                        <p class="text-xs text-gray-600">(LTV Gross Profit of Y1 Deals vs Y1 Investment)</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3" id="year1-roi-visual-container"> <div style="position: relative; height:110px; width:100%;"> <canvas id="year1ROIPercentageChart"></canvas>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1 text-center px-1">
+                                        Visualizes ROI percentages relative to the Year 1 Investment of <span id="chart-ref-y1-investment-roi" class="font-semibold">$--</span>.
+                                    </p>
+                                </div>
+                            </div> 
+                            <div class="space-y-3 pt-3"> <h4 class="text-md font-semibold text-purple-800 mb-2">Year 2 ROI</h4>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                     <div>
+                                        <p class="text-sm text-gray-700">Total Year 2 Investment</p>
+                                        <p class="text-lg font-bold text-blue-900" id="output-year2InvestmentDisplayROI">$--</p>
+                                         <p class="text-xs text-gray-600" id="output-year2-investment-note">(SDR Comp + SaaS + Opt. Overheads)</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 2 Gross Profit</p>
+                                        <p class="text-xl font-semibold text-emerald-700" id="output-year2GrossProfitDisplayROI">$--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 2 Net Profit</p>
+                                        <p class="text-xl font-semibold text-purple-600" id="output-year2NetProfit">$--</p>
+                                    </div>
+                                    <div>
+                                        <p class="text-sm text-gray-700">Year 2 ROI</p>
+                                        <p class="text-xl font-semibold text-emerald-700" id="output-year2ROI">--%</p>
+                                        <p class="text-xs text-gray-600">(Based on Y2 Net Profit vs Y2 Investment)</p>
+                                    </div>
+                                </div>
+                                <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
+                                    <div id="output-lifetimeValue2-section" class="hidden">
+                                        <p class="text-sm text-gray-600">Projected LTV of Y2 New Deals (Gross Profit)</p>
+                                        <p class="text-lg font-bold text-purple-700" id="output-year2CustomerLTVGrossProfit">$--</p>
+                                        <p class="text-xs text-gray-600">(Based on <span id="output-ltvDisplayValue2">--</span>m LTV Basis & Renewal Rates)</p>
+                                    </div>
+                                     <div id="output-lifetimeROI2-section" class="hidden">
+                                        <p class="text-sm text-gray-600">Year 2 Projected LTV ROI</p>
+                                        <p class="text-xl font-bold text-purple-700" id="output-lifetimeROI_Year2">--%</p>
+                                        <p class="text-xs text-gray-600">(LTV Gross Profit of Y2 Deals vs Y2 Investment)</p>
+                                    </div>
+                                </div>
+                                <div class="mt-3" id="year2-roi-visual-container"> <div style="position: relative; height:110px; width:100%;"> <canvas id="year2ROIPercentageChart"></canvas>
+                                    </div>
+                                    <p class="text-xs text-gray-500 mt-1 text-center px-1">
+                                        Visualizes ROI percentages relative to the Year 2 Investment of <span id="chart-ref-y2-investment-roi" class="font-semibold">$--</span>.
+                                    </p>
                                 </div>
                             </div>
                         </div>
                     </div>
-
-                    <div class="bg-green-50 p-4 rounded-lg shadow-sm result-section-card"> <h3 class="text-lg font-medium text-blue-900 mb-2">Return on Investment (ROI)</h3>
-                         <div class="result-content space-y-4">
-                             <div class="pb-3 border-b border-gray-200">
-                                 <h4 class="text-md font-semibold text-blue-800 mb-2">Year 1 ROI</h4>
-                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                     <div>
-                                         <p class="text-sm text-gray-600">Total Year 1 Investment</p>
-                                         <p class="text-lg font-bold text-green-700" id="output-year1InvestmentDisplayROI">$--</p>
-                                     </div>
-                                     <div>
-                                         <p class="text-sm text-gray-600">Year 1 ROI</p>
-                                         <p class="text-xl font-bold text-blue-900" id="output-year1ROI">--%</p>
-                                         <p class="text-xs text-gray-500">(Based on Y1 Revenue)</p>
-                                     </div>
-                                     <div>
-                                         <p class="text-sm text-gray-600">Year 1 Realized Revenue</p>
-                                         <p class="text-lg font-bold" id="output-year1RevenueDisplay">$--</p>
-                                     </div>
-                                     <div id="output-lifetimeROI1-section" class="hidden">
-                                         <p class="text-sm text-gray-600">Year 1 Lifetime ROI</p>
-                                         <p class="text-xl font-bold text-blue-900" id="output-lifetimeROI_Year1">--%</p>
-                                         <p class="text-xs text-gray-500">(Based on <span id="output-ltvDisplayROI1">--</span>m LTV of Y1 New Deals)</p>
-                                     </div>
-                                     <div id="output-lifetimeValue1-section" class="hidden">
-                                         <p class="text-sm text-gray-600">Lifetime Value of Y1 New Deals</p>
-                                         <p class="text-lg font-bold" id="output-year1CustomerValue">$--</p>
-                                     </div>
-                                 </div>
-                             </div>
-                             <div>
-                                 <h4 class="text-md font-semibold text-purple-800 mb-2">Year 2 ROI</h4>
-                                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-2">
-                                     <div>
-                                         <p class="text-sm text-gray-600">Total Year 2 Investment</p>
-                                          <p class="text-lg font-bold text-green-700" id="output-year2InvestmentDisplayROI">$--</p>
-                                          <p class="text-xs text-gray-500">(Base Costs Only)</p>
-                                     </div>
-                                     <div>
-                                         <p class="text-sm text-gray-600">Year 2 ROI</p>
-                                         <p class="text-xl font-bold text-purple-800" id="output-year2ROI">--%</p>
-                                         <p class="text-xs text-gray-500">(Based on Y2 Total Revenue vs Y2 Base Inv.)</p>
-                                     </div>
-                                     <div>
-                                         <p class="text-sm text-gray-600">Year 2 Total Revenue</p>
-                                         <p class="text-lg font-bold" id="output-year2TotalRevenueDisplay">$--</p>
-                                     </div>
-                                     <div id="output-lifetimeROI2-section" class="hidden">
-                                         <p class="text-sm text-gray-600">Year 2 Lifetime ROI</p>
-                                         <p class="text-xl font-bold text-purple-800" id="output-lifetimeROI_Year2">--%</p>
-                                         <p class="text-xs text-gray-500">(Based on <span id="output-ltvDisplayROI2">--</span>m LTV of Y2 New Deals vs Y2 Base Inv.)</p>
-                                     </div>
-                                     <div id="output-lifetimeValue2-section" class="hidden">
-                                         <p class="text-sm text-gray-600">Lifetime Value of Y2 New Deals</p>
-                                         <p class="text-lg font-bold" id="output-year2CustomerValue">$--</p>
-                                     </div>
-                                 </div>
-                             </div>
-                         </div>
-                     </div>
                 </div>
 
                 <div class="bg-white p-4 rounded-lg shadow-sm">
@@ -431,127 +576,175 @@
                     <div id="explanation-content" class="explanation-content bg-gray-100 p-4 rounded-lg shadow-inner border border-gray-200">
                         <h3 class="text-md font-semibold text-gray-800 mb-3">Calculation Notes</h3>
                         <div class="space-y-2 text-xs text-gray-700">
-                             <p><strong>Monthly/Annual Leads:</strong> SDRs x Leads/SDR/Month. Ramp-up (if selected) assumes 0 leads in month 1, then 60% productivity for months 2-4, reaching 100% from month 5.</p>
-                             <p><strong>Pipeline Generated:</strong> Annual Leads (Year 1) x Average Deal Size.</p>
-                             <p><strong>New Deals & Revenue Realization:</strong> Calculated monthly based on leads generated <code id="exp-sales-cycle">--</code> months prior, using the <code id="exp-conversion-rate">--</code>% conversion rate.</p>
-                             <p><strong>Year 1 vs Year 2:</strong> Metrics are aggregated based on when new deals *close* (Month 1-12 for Year 1, Month 13-24 for Year 2).</p>
-                             <p><strong>Est. Revenue from Y1 Leads Closing in Y2:</strong> Value of Year 1 leads expected to close in Year 2 due to sales cycle delay.</p>
-                             <p><strong>Year 1 Investment:</strong> Sum of 12 months of SDR costs (Base Salary + SaaS + RevUp Force) plus any Illicium Fractional Sales Management costs incurred within the first 12 months (based on selected duration). Displayed in Financial Analysis and ROI sections.</p>
-                             <p><strong>Year 1 Base Investment:</strong> Sum of 12 months of SDR base costs (Base Salary + SaaS + RevUp Force). Used for CPL & CPA calculation.</p> <p><strong>Year 2 Investment:</strong> Sum of 12 months of SDR base costs (Base Salary + SaaS + RevUp Force). Assumes Illicium Fractional Sales Management cost does not extend into Year 2. Displayed in ROI section.</p>
-                             <p><strong>Avg. Monthly Costs (Year 1):</strong> Individual cost components (Salary, SaaS, RevUp) averaged over 12 months. Total Avg. Monthly Cost includes these plus the averaged Illicium Mgmt cost (Total Y1 Investment / 12).</p>
-                             <p><strong>Illicium Investment:</strong> Shows total costs for RevUp Force (annual) and Illicium Fractional Management (over selected duration).</p>
-                             <p><strong>Cost Per Lead (CPL):</strong> Year 1 Base Investment ÷ Year 1 Qualified Leads. (Excludes Fractional Sales Management Cost).</p> <p><strong>Cost Per Acquisition (CPA):</strong> Year 1 Base Investment ÷ Year 1 New Deals Closed. (Excludes Fractional Sales Management Cost).</p> <p><strong>Breakeven:</strong> The first month where cumulative realized revenue meets or exceeds cumulative monthly costs (incl. RevUp Force & Illicium service costs when active).</p>
-                             <p><strong>Year 1 ROI:</strong> ((Year 1 Realized Revenue - Year 1 Investment) / Year 1 Investment) x 100%.</p>
-                             <p><strong>Year 2 ROI:</strong> ((Year 2 Total Revenue - Year 2 Investment) / Year 2 Investment) x 100%. Year 2 Investment typically only includes base costs (SDR Salary + SaaS + RevUp Force).</p>
-                             <p><strong>Lifetime Value (LTV) Basis:</strong> Adjusts calculations for renewals and lifetime ROI. 18m = 1.5x multiplier, 24m = 2x multiplier on initial deal size for value calculations.</p>
-                             <p><strong>Lifetime ROI:</strong> ((Total Lifetime Value of New Deals Closed in Period - Investment in Period) / Investment in Period) x 100%.</p>
+                            <p><strong>SDR Compensation:</strong> Includes Monthly Salary Package (incl. Superannuation) and Monthly Variable Commission.</p>
+                            <p><strong>Monthly/Annual Leads:</strong> SDRs x Leads/SDR/Month. Ramp-up (if selected) assumes 50% productivity for months 1-3, then 100% from month 4.</p>
+                            <p><strong>Pipeline Generated:</strong> Annual Leads (Year 1) x Average Deal Size (Revenue).</p>
+                            <p><strong>New Deals & Revenue Realization:</strong> Calculated monthly based on leads generated <code id="exp-sales-cycle">--</code> months prior, using the <code id="exp-conversion-rate">--</code>% conversion rate. Revenue shown is total deal value.</p>
+                            <p><strong>Gross Profit:</strong> Calculated as Total Revenue x Average Gross Margin (%).</p>
+                            <p><strong>Net Profit:</strong> Calculated as Gross Profit - Total Investment for that specific year.</p>
+                            <p><strong>Year 1 vs Year 2:</strong> Metrics are aggregated based on when new deals *close* (Month 1-12 for Year 1, Month 13-24 for Year 2).</p>
+                            <p><strong>Y1 Customer Renewals (in Y2):</strong> Revenue from Year 1 customers renewing into Year 2, based on "Year 1 Customer Renewal Rate (%)" applied to total revenue from deals closed in Y1.</p>
+                            <p><strong>Est. Revenue from Y1 Leads Closing in Y2:</strong> Total revenue value of Year 1 leads expected to close in Year 2 due to sales cycle delay.</p>
+                            <p><strong>Fractional Sales Management Costs:</strong> If included, the "Monthly Cost for 4-Month Onboarding & Training Support" is applied each month for the first 4 months. "Ongoing Fractional Management Support" costs are then applied monthly for the selected duration, starting after this initial 4-month onboarding period.</p>
+                            <p><strong>Year 1 Investment:</strong> Sum of 12 months of Total SDR Compensation (Salary Pkg + Commission), SaaS Costs, and any included Fractional Sales Management costs (onboarding + applicable ongoing portion for Y1) and HR & Payroll Overheads.</p>
+                            <p><strong>Year 2 Investment:</strong> Sum of 12 months of Total SDR Compensation, SaaS Costs, and any included Fractional Sales Management costs (ongoing portion applicable to Y2) and HR & Payroll Overheads (assumed to continue at the same rate as Year 1).</p>
+                            <p><strong>Avg. Monthly Costs (Year 1):</strong> Total Year 1 Investment divided by 12.</p>
+                            <p><strong>Operational Overheads (Annual):</strong> Shows total annual costs for Fractional Sales Management and HR & Payroll overheads if these options are included.</p>
+                            <p><strong>Cost Per Lead (CPL):</strong> Total Year 1 Investment ÷ Year 1 Qualified Leads.</p>
+                            <p><strong>Cost Per Acquisition (CPA):</strong> Total Year 1 Investment ÷ Year 1 New Deals Closed.</p>
+                            <p><strong>Breakeven:</strong> The first month where cumulative Gross Profit meets or exceeds cumulative monthly costs.</p>
+                            <p><strong>Year 1 ROI:</strong> (Year 1 Net Profit / Year 1 Investment) x 100%.</p>
+                            <p><strong>Year 2 ROI:</strong> (Year 2 Net Profit / Year 2 Investment) x 100%.</p>
+                            <p><strong>Projected LTV Basis (for LTV ROI):</strong> Determines the duration and renewal cycles included in the "Projected LTV of New Deals (Gross Profit)".</p>
+                            <ul class="list-disc list-inside ml-4">
+                                <li><strong>12 Months:</strong> Initial deal gross profit.</li>
+                                <li><strong>18 Months:</strong> Initial deal gross profit + 50% of the first renewal's gross profit (using Y1 Renewal Rate).</li>
+                                <li><strong>24 Months:</strong> Initial deal gross profit + 100% of the first renewal's gross profit (using Y1 Renewal Rate).</li>
+                                <li><strong>36 Months:</strong> Initial deal gross profit + 100% of the first renewal's gross profit (using Y1 Renewal Rate) + 100% of the second renewal's gross profit (using Y2 Renewal Rate on the Y1-renewed cohort).</li>
+                            </ul>
+                            <p><strong>Projected LTV ROI:</strong> ((Projected LTV Gross Profit of New Deals in Period - Investment in Period) / Investment in Period) x 100%. This ROI uses the projected LTV Gross Profit calculated as described above.</p>
                         </div>
                     </div>
                 </div>
 
-            </div> </div> <div class="mt-10 pt-5 border-t border-gray-300 text-center text-gray-500 text-xs">
-            <p>Disclaimer: This calculator provides estimates based on the parameters entered. Actual results can vary based on market conditions, execution, team performance, and other factors not captured here.</p>
-            <p class="mt-2">© <span id="copyright-year">2025</span> | Revup Forge ROI Calculator</p>
+            </div>
         </div>
-    </div> <script>
-        // --- Helper Function ---
-        /**
-         * Formats a number using Intl.NumberFormat for thousands separators.
-         * Returns '--' if the input is not a valid, finite number.
-         * @param {number|string|null|undefined} num - The number to format.
-         * @returns {string} The formatted number string or '--'.
-         */
+        <div class="mt-10 pt-5 border-t border-gray-300 text-center text-gray-500 text-xs">
+            <p>Disclaimer: This calculator provides estimates based on the parameters entered. Actual results can vary based on market conditions, execution, team performance, and other factors not captured here.</p>
+            <p class="mt-2">© <span id="copyright-year">2025</span> | Sales Development Team Setup ROI Calculator</p>
+        </div>
+    </div>
+
+    <script>
+        // --- Helper Function to display non-blocking error messages ---
+        function showErrorMessage(message) {
+            const errorBox = document.getElementById('error-message-box');
+            const errorText = document.getElementById('error-message-text');
+            if (errorBox && errorText) {
+                errorText.textContent = message;
+                errorBox.classList.remove('hidden');
+                errorBox.style.opacity = '1'; // Ensure it's visible
+                setTimeout(() => {
+                    errorBox.style.opacity = '0'; // Fade out
+                    setTimeout(() => errorBox.classList.add('hidden'), 500); // Hide after fade
+                }, 5000);
+            }
+        }
+
+        // --- Helper Function to format numbers ---
         function formatNumber(num) {
-            // Check for invalid inputs (null, undefined, NaN, Infinity)
             if (num === undefined || num === null || isNaN(num) || !isFinite(num)) return "--";
-            const numValue = Number(num); // Ensure it's a number type
-            // Use Intl.NumberFormat for locale-aware formatting
+            const numValue = Number(num);
             return new Intl.NumberFormat('en-US').format(numValue);
         }
+         function formatPercentage(num) {
+            if (num === undefined || num === null || isNaN(num) || !isFinite(num)) return "--%";
+            return Math.round(num) + '%';
+        }
+
 
         // --- DOM Element References ---
         const form = document.getElementById('roi-form');
-        // Input elements grouped for easy access
         const inputs = {
             numberOfSDRs: document.getElementById('numberOfSDRs'),
-            sdrMonthlySalary: document.getElementById('sdrMonthlySalary'),
+            sdrMonthlySalary: document.getElementById('sdrMonthlySalary'), 
+            sdrVariableCommission: document.getElementById('sdrVariableCommission'),
             leadsPerSDRMonth: document.getElementById('leadsPerSDRMonth'),
-            monthlySaasTools: document.getElementById('monthlySaasTools'),
-            revUpForceCost: document.getElementById('revUpForceCost'),
-            includeFractionalSales: document.getElementById('includeFractionalSales'),
-            salesMgmtMonthlyCost: document.getElementById('salesMgmtMonthlyCost'),
-            fractionalSalesDuration: document.getElementById('fractionalSalesDuration'),
-            averageDealSize: document.getElementById('averageDealSize'),
-            averageSalesCycle: document.getElementById('averageSalesCycle'),
-            leadConversionRate: document.getElementById('leadConversionRate'),
+            monthlySaasTools: document.getElementById('monthlySaasTools'), 
+            includeFractionalSalesManagement: document.getElementById('includeFractionalSalesManagement'), 
+            fractionalOnboardingCost: document.getElementById('fractionalOnboardingCost'), 
+            includeOngoingFractionalSupport: document.getElementById('includeOngoingFractionalSupport'), 
+            ongoingFractionalDuration: document.getElementById('ongoingFractionalDuration'), 
+            ongoingFractionalMonthlyCost: document.getElementById('ongoingFractionalMonthlyCost'), 
+            includeHRPayrollOverheads: document.getElementById('includeHRPayrollOverheads'),
+            hrPayrollOverheadsPerSDR: document.getElementById('hrPayrollOverheadsPerSDR'), 
+            averageDealSize: document.getElementById('averageDealSize'), 
+            averageGrossMargin: document.getElementById('averageGrossMargin'), 
+            averageSalesCycle: document.getElementById('averageSalesCycle'), 
+            leadConversionRate: document.getElementById('leadConversionRate'), 
             isTeamFullyRamped: document.getElementById('isTeamFullyRamped'),
-            customerLifetimeValue: document.getElementById('customerLifetimeValue'),
+            customerLifetimeValue: document.getElementById('customerLifetimeValue'), 
+            year1RenewalRate: document.getElementById('year1RenewalRate'), 
+            year2RenewalRate: document.getElementById('year2RenewalRate'), 
         };
-        const fractionalInputsContainer = document.getElementById('fractional-inputs-container');
-        const rampUpNote = document.getElementById('ramp-up-note');
+        // Containers for conditional visibility
+        const year1RenewalRateContainer = document.getElementById('year1-renewal-rate-container');
+        const year2RenewalRateContainer = document.getElementById('year2-renewal-rate-container');
 
-        // Output elements grouped for easy access
+        const fractionalSalesInputsContainer = document.getElementById('fractional-sales-inputs-container'); 
+        const ongoingFractionalSupportContainer = document.getElementById('ongoing-fractional-support-container'); 
+        const hrPayrollInputsContainer = document.getElementById('hr-payroll-inputs-container');
+        const rampUpNote = document.getElementById('ramp-up-note');
         const outputs = {
-            // Lead Gen & Costs
+            totalSDRCompensationPerSDR: document.getElementById('output-totalSDRCompensationPerSDR'), 
             monthlyLeads: document.getElementById('output-monthlyLeads'),
             monthlyLeadsNote: document.getElementById('output-monthlyLeads-note'),
             annualLeads: document.getElementById('output-annualLeads'),
             annualLeadsNote: document.getElementById('output-annualLeads-note'),
             costPerLead: document.getElementById('output-costPerLead'),
+            cplNote: document.getElementById('output-cpl-note'),
             costPerAcquisition: document.getElementById('output-costPerAcquisition'),
-            cplNote: document.getElementById('output-cpl-note'), // Added
-            cpaNote: document.getElementById('output-cpa-note'), // Added
-            // Y1 Performance
+            cpaNote: document.getElementById('output-cpa-note'),
             annualPipeline: document.getElementById('output-annualPipeline'),
             firstRevenueMonth: document.getElementById('output-firstRevenueMonth'),
             firstRevenueAmount: document.getElementById('output-firstRevenueAmount'),
             salesCycleDisplay: document.getElementById('output-salesCycleDisplay'),
-            year1Deals: document.getElementById('output-year1Deals'), // Represents New Deals Closed
+            year1Deals: document.getElementById('output-year1Deals'),
             conversionRateDisplay: document.getElementById('output-conversionRateDisplay'),
             year1Revenue: document.getElementById('output-year1Revenue'),
-            unrealizedRevenueY2: document.getElementById('output-unrealizedRevenueY2'), // Renamed from unrealizedPipelineValue
-            // Y2 Performance
-            year2Deals: document.getElementById('output-year2Deals'), // Represents New Deals Closed
-            year2Revenue: document.getElementById('output-year2Revenue'), // Represents New Deal Revenue
+            year1GrossProfit: document.getElementById('output-year1GrossProfit'), 
+            grossMarginDisplayY1: document.getElementById('output-grossMarginDisplayY1'), 
+            unrealizedRevenueY2: document.getElementById('output-unrealizedRevenueY2'),
+            year2Deals: document.getElementById('output-year2Deals'),
+            year2Revenue: document.getElementById('output-year2Revenue'), 
+            year2GrossProfit: document.getElementById('output-year2GrossProfit'), 
+            grossMarginDisplayY2: document.getElementById('output-grossMarginDisplayY2'), 
             renewalSection: document.getElementById('output-renewal-section'),
-            year1RenewalRevenue: document.getElementById('output-year1RenewalRevenue'),
-            ltvDisplayRenewal: document.getElementById('output-ltvDisplayRenewal'),
-            year2TotalRevenue: document.getElementById('output-year2TotalRevenue'),
-            // Financial Analysis
-            monthlySDRCost: document.getElementById('output-monthlySDRCost'),
-            monthlySaaSCost: document.getElementById('output-monthlySaaSCost'),
-            illiciumInvestmentSection: document.getElementById('illicium-investment-section'),
-            totalRevupCost: document.getElementById('output-total-revup-cost'),
-            illiciumFracTotalCostSection: document.getElementById('output-illiciumFracTotalCost-section'),
-            totalIlliciumMgmtCost: document.getElementById('output-total-illicium-mgmt-cost'),
-            illiciumMgmtCalcNote: document.getElementById('output-illicium-mgmt-calc-note'),
-            sdrCountRevup: document.getElementById('output-sdrCountRevup'),
-            revupCostPerSDR: document.getElementById('output-revupCostPerSDR'),
+            year1RenewalRevenue: document.getElementById('output-year1RenewalRevenue'), 
+            year1RenewalRateDisplay: document.getElementById('output-year1RenewalRateDisplay'), 
+            year2TotalRevenue: document.getElementById('output-year2TotalRevenue'), 
+            monthlySDRCompensationTeam: document.getElementById('output-monthlySDRCompensationTeam'), 
+            avgMonthlySDRTeamVariableComp: document.getElementById('output-avgMonthlySDRTeamVariableComp'), 
+            monthlySaaSCostTeam: document.getElementById('output-monthlySaaSCostTeam'),
+            operationalOverheadsSection: document.getElementById('operational-overheads-section'),
+            operationalOverheadsSeparator: document.getElementById('operational-overheads-separator'),
+            totalFractionalSalesCostSection: document.getElementById('output-total-fractional-sales-cost-section'), 
+            totalAnnualFractionalSalesCost: document.getElementById('output-total-annual-fractional-sales-cost'), 
+            fractionalSalesCostCalcNote: document.getElementById('output-fractional-sales-cost-calc-note'), 
+            totalHRPayrollOverheadsSection: document.getElementById('output-total-hr-payroll-overheads-section'),
+            totalAnnualHRPayrollOverheads: document.getElementById('output-total-annual-hr-payroll-overheads'),
+            hrPayrollOverheadsCalcNote: document.getElementById('output-hr-payroll-overheads-calc-note'),
             monthlyTotalCost: document.getElementById('output-monthlyTotalCost'),
-            annualInvestment: document.getElementById('output-annualInvestment'), // Y1 Investment (in Fin Analysis section)
-            fractionalCostY1Note: document.getElementById('output-fractionalCostY1-note'),
-            fractionalCostY1: document.getElementById('output-fractionalCostY1'),
+            monthlyTotalCostNote: document.getElementById('output-monthly-total-cost-note'),
+            annualInvestment: document.getElementById('output-annualInvestment'),
             monthsToBreakeven: document.getElementById('output-monthsToBreakeven'),
-            // ROI Outputs
+            
+            year1InvestmentDisplayROI: document.getElementById('output-year1InvestmentDisplayROI'),
+            year1GrossProfitDisplayROI: document.getElementById('output-year1GrossProfitDisplayROI'), 
+            year1NetProfit: document.getElementById('output-year1NetProfit'), 
             year1ROI: document.getElementById('output-year1ROI'),
-            year1InvestmentDisplayROI: document.getElementById('output-year1InvestmentDisplayROI'), // Added
+            
+            lifetimeValue1Section: document.getElementById('output-lifetimeValue1-section'),
+            year1CustomerLTVGrossProfit: document.getElementById('output-year1CustomerLTVGrossProfit'), 
+            ltvDisplayValue1: document.getElementById('output-ltvDisplayValue1'),
             lifetimeROI1Section: document.getElementById('output-lifetimeROI1-section'),
             lifetimeROI_Year1: document.getElementById('output-lifetimeROI_Year1'),
-            ltvDisplayROI1: document.getElementById('output-ltvDisplayROI1'),
-            year1RevenueDisplay: document.getElementById('output-year1RevenueDisplay'),
-            lifetimeValue1Section: document.getElementById('output-lifetimeValue1-section'),
-            year1CustomerValue: document.getElementById('output-year1CustomerValue'), // Represents LTV of Y1 New Deals
+            
+            year2InvestmentDisplayROI: document.getElementById('output-year2InvestmentDisplayROI'),
+            year2GrossProfitDisplayROI: document.getElementById('output-year2GrossProfitDisplayROI'), 
+            year2NetProfit: document.getElementById('output-year2NetProfit'), 
             year2ROI: document.getElementById('output-year2ROI'),
-            year2InvestmentDisplayROI: document.getElementById('output-year2InvestmentDisplayROI'), // Added
+            year2InvestmentNote: document.getElementById('output-year2-investment-note'),
+
+            lifetimeValue2Section: document.getElementById('output-lifetimeValue2-section'),
+            year2CustomerLTVGrossProfit: document.getElementById('output-year2CustomerLTVGrossProfit'), 
+            ltvDisplayValue2: document.getElementById('output-ltvDisplayValue2'),
             lifetimeROI2Section: document.getElementById('output-lifetimeROI2-section'),
             lifetimeROI_Year2: document.getElementById('output-lifetimeROI_Year2'),
-            ltvDisplayROI2: document.getElementById('output-ltvDisplayROI2'),
-            year2TotalRevenueDisplay: document.getElementById('output-year2TotalRevenueDisplay'),
-            lifetimeValue2Section: document.getElementById('output-lifetimeValue2-section'),
-            year2CustomerValue: document.getElementById('output-year2CustomerValue'), // Represents LTV of Y2 New Deals
-        };
 
-        // Other UI elements
+            chartRefY1InvestmentROI: document.getElementById('chart-ref-y1-investment-roi'),
+            chartRefY2InvestmentROI: document.getElementById('chart-ref-y2-investment-roi'),
+        };
         const explanationContent = document.getElementById('explanation-content');
         const toggleExplanationsButton = document.getElementById('toggle-explanations');
         const downloadPdfButton = document.getElementById('download-pdf-button');
@@ -560,313 +753,672 @@
         const expConversionRate = document.getElementById('exp-conversion-rate');
         document.getElementById('copyright-year').textContent = new Date().getFullYear();
 
+        // --- Chart.js Setup ---
+        let year1ChartInstance = null;
+        let year1ROIPercentageChartInstance = null;
+        let year2ROIPercentageChartInstance = null;
+
+
+        if (window.Chart && window.Chart.register && window.ChartAnnotation) {
+            try {
+                window.Chart.register(window.ChartAnnotation);
+            } catch (e) {
+                console.error("Error registering ChartAnnotation plugin:", e);
+                showErrorMessage("Chart plugin could not be registered. Charts might not display correctly.");
+            }
+        } else {
+            console.warn('Chart.js or ChartAnnotation plugin not fully loaded. Financial chart might not render with all features.');
+        }
+
+        function updateYear1FinancialChart(labels, investmentData, grossProfitData, cumulativeNetProfitData, breakevenMonthValue) {
+            const ctx = document.getElementById('year1FinancialChart');
+            if (!ctx) { console.error('Canvas element for year1FinancialChart not found.'); return; }
+            if (!window.Chart) { console.error('Chart.js is not loaded.'); showErrorMessage('Charting library not available.'); return; }
+            if (year1ChartInstance) { year1ChartInstance.destroy(); }
+
+            const breakevenAnnotations = [];
+            const numericBreakevenMonth = parseInt(breakevenMonthValue);
+            if (!isNaN(numericBreakevenMonth) && numericBreakevenMonth > 0 && numericBreakevenMonth <= 12) {
+                breakevenAnnotations.push({
+                    type: 'line', xMin: numericBreakevenMonth - 1, xMax: numericBreakevenMonth - 1,
+                    borderColor: 'rgba(220, 53, 69, 0.8)', borderWidth: 2, borderDash: [5, 5],
+                    label: { content: 'Breakeven', enabled: true, position: 'start', backgroundColor: 'rgba(220, 53, 69, 0.7)', font: { weight: 'bold', size: 10 }, color: 'white', padding: 4, yAdjust: -15 }
+                });
+            }
+            year1ChartInstance = new Chart(ctx, {
+                type: 'line',
+                data: { labels: labels, datasets: [
+                        { label: 'Cumulative Investment', data: investmentData, borderColor: 'rgb(255, 99, 132)', backgroundColor: 'rgba(255, 99, 132, 0.1)', tension: 0.1, fill: true, yAxisID: 'y' },
+                        { label: 'Cumulative Gross Profit', data: grossProfitData, borderColor: 'rgb(75, 192, 192)', backgroundColor: 'rgba(75, 192, 192, 0.1)', tension: 0.1, fill: true, yAxisID: 'y' },
+                        { label: 'Cumulative Net Profit/Loss', data: cumulativeNetProfitData, borderColor: 'rgb(54, 162, 235)', backgroundColor: 'rgba(54, 162, 235, 0.1)', tension: 0.1, fill: false, yAxisID: 'y' }
+                    ]},
+                options: { responsive: true, maintainAspectRatio: false, interaction: { mode: 'index', intersect: false },
+                    scales: { x: { display: true, title: { display: true, text: 'Month' } },
+                        y: { display: true, title: { display: true, text: 'Amount (AUD)' }, beginAtZero: false, ticks: { callback: function(value) { return '$' + formatNumber(value); } } }
+                    },
+                    plugins: { tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.y !== null) { label += '$' + formatNumber(Math.round(context.parsed.y)); } return label; } } },
+                        annotation: { annotations: breakevenAnnotations.length > 0 ? breakevenAnnotations : {} },
+                        legend: { position: 'top' }, title: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateYear1ROIPercentageChart(year1ROIValue, lifetimeROI_Year1Value, year1InvestmentValue, isLifetimeApplicable) {
+            const ctx = document.getElementById('year1ROIPercentageChart');
+            if (!ctx) { console.error('Canvas for year1ROIPercentageChart not found.'); return; }
+            if (!window.Chart) { console.error('Chart.js not loaded for ROI chart.'); return; }
+            if (year1ROIPercentageChartInstance) { year1ROIPercentageChartInstance.destroy(); }
+
+            const labels = ['Direct ROI (Net Profit Based)'];
+            const data = [isNaN(year1ROIValue) || !isFinite(year1ROIValue) ? 0 : year1ROIValue];
+            const backgroundColors = ['rgba(75, 192, 192, 0.6)']; // Teal for Direct ROI
+            const borderColors = ['rgb(75, 192, 192)'];
+
+            if (isLifetimeApplicable) {
+                labels.push('Projected LTV ROI (LTV Gross Profit Based)');
+                data.push(isNaN(lifetimeROI_Year1Value) || !isFinite(lifetimeROI_Year1Value) ? 0 : lifetimeROI_Year1Value);
+                backgroundColors.push('rgba(54, 162, 235, 0.6)'); // Blue for LTV ROI
+                borderColors.push('rgb(54, 162, 235)');
+            }
+            if(outputs.chartRefY1InvestmentROI) { outputs.chartRefY1InvestmentROI.textContent = '$' + formatNumber(Math.round(year1InvestmentValue)); }
+
+            year1ROIPercentageChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ROI %',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 0.8,
+                        barThickness: 20,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Percentage (%)' },
+                            ticks: {
+                                callback: function(value) { return value + '%'; },
+                                font: { size: 10 }
+                            }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 10 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.x !== null) { label += formatPercentage(context.parsed.x); } return label; } } },
+                        title: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateYear2ROIPercentageChart(year2ROIValue, lifetimeROI_Year2Value, year2InvestmentValue, isLifetimeApplicable) {
+            const ctx = document.getElementById('year2ROIPercentageChart');
+            if (!ctx) { console.error('Canvas element for year2ROIPercentageChart not found.'); return; }
+            if (!window.Chart) { console.error('Chart.js is not loaded. Cannot render Year 2 ROI percentage chart.'); return; }
+
+            if (year2ROIPercentageChartInstance) {
+                year2ROIPercentageChartInstance.destroy();
+            }
+
+            const labels = ['Direct ROI (Net Profit Based)'];
+            const data = [isNaN(year2ROIValue) || !isFinite(year2ROIValue) ? 0 : year2ROIValue];
+            const backgroundColors = ['rgba(153, 102, 255, 0.6)']; // Purple for Direct ROI
+            const borderColors = ['rgb(153, 102, 255)'];
+
+            if (isLifetimeApplicable) {
+                labels.push('Projected LTV ROI (LTV Gross Profit Based)');
+                data.push(isNaN(lifetimeROI_Year2Value) || !isFinite(lifetimeROI_Year2Value) ? 0 : lifetimeROI_Year2Value);
+                backgroundColors.push('rgba(255, 159, 64, 0.6)'); // Orange for LTV ROI
+                borderColors.push('rgb(255, 159, 64)');
+            }
+
+            if(outputs.chartRefY2InvestmentROI) {
+                outputs.chartRefY2InvestmentROI.textContent = '$' + formatNumber(Math.round(year2InvestmentValue));
+            }
+
+            year2ROIPercentageChartInstance = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'ROI %',
+                        data: data,
+                        backgroundColor: backgroundColors,
+                        borderColor: borderColors,
+                        borderWidth: 0.8,
+                        barThickness: 20,
+                    }]
+                },
+                options: {
+                    indexAxis: 'y',
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    scales: {
+                        x: {
+                            beginAtZero: true, 
+                            title: { display: true, text: 'Percentage (%)' },
+                            ticks: {
+                                callback: function(value) { return value + '%'; },
+                                font: { size: 10 }
+                            }
+                        },
+                        y: {
+                            grid: { display: false },
+                            ticks: {
+                                font: { size: 10 }
+                            }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: { callbacks: { label: function(context) { let label = context.dataset.label || ''; if (label) { label += ': '; } if (context.parsed.x !== null) { label += formatPercentage(context.parsed.x); } return label; } } },
+                        title: { display: false }
+                    }
+                }
+            });
+        }
+
 
         // --- Calculation Logic ---
         function calculateROI() {
-            // Get values from form inputs
+            // Get all input values
             const numberOfSDRs = parseInt(inputs.numberOfSDRs.value) || 0;
-            const sdrMonthlySalary = parseFloat(inputs.sdrMonthlySalary.value) || 0;
+            const sdrMonthlySalaryPkg = parseFloat(inputs.sdrMonthlySalary.value) || 0;
+            const sdrVariableCommission = parseFloat(inputs.sdrVariableCommission.value) || 0;
+            const totalMonthlyCompPerSDR = sdrMonthlySalaryPkg + sdrVariableCommission;
+
             const leadsPerSDRMonth = parseInt(inputs.leadsPerSDRMonth.value) || 0;
-            const monthlySaasTools = parseFloat(inputs.monthlySaasTools.value) || 0;
-            const revUpForceCostPerSDR = parseFloat(inputs.revUpForceCost.value) || 0;
-            const includeFractionalSales = inputs.includeFractionalSales.checked;
-            const salesMgmtMonthlyCost = includeFractionalSales ? (parseFloat(inputs.salesMgmtMonthlyCost.value) || 0) : 0;
-            const fractionalSalesDuration = includeFractionalSales ? (parseInt(inputs.fractionalSalesDuration.value) || 0) : 0;
+            const monthlySaasToolsPerSDR = parseFloat(inputs.monthlySaasTools.value) || 0;
+
+            const includeFractionalSales = inputs.includeFractionalSalesManagement.checked;
+            const monthlyFractionalOnboardingCost = includeFractionalSales ? (parseFloat(inputs.fractionalOnboardingCost.value) || 0) : 0;
+            const includeOngoingFractional = includeFractionalSales ? inputs.includeOngoingFractionalSupport.checked : false;
+            const ongoingFractionalDurationMonths = (includeFractionalSales && includeOngoingFractional) ? (parseInt(inputs.ongoingFractionalDuration.value) || 0) : 0;
+            const ongoingFractionalMonthlyCostValue = (includeFractionalSales && includeOngoingFractional) ? (parseFloat(inputs.ongoingFractionalMonthlyCost.value) || 0) : 0;
+            
+            const includeHRPayrollOverheads = inputs.includeHRPayrollOverheads.checked;
+            const hrPayrollOverheadsPerSDR = includeHRPayrollOverheads ? (parseFloat(inputs.hrPayrollOverheadsPerSDR.value) || 0) : 0;
+
             const averageDealSize = parseFloat(inputs.averageDealSize.value) || 0;
+            const averageGrossMargin = parseFloat(inputs.averageGrossMargin.value) || 0; 
             const averageSalesCycle = parseInt(inputs.averageSalesCycle.value) || 0;
             const leadConversionRate = parseFloat(inputs.leadConversionRate.value) || 0;
             const isTeamFullyRamped = inputs.isTeamFullyRamped.checked;
-            const customerLifetimeValue = inputs.customerLifetimeValue.value;
+            
+            const customerLifetimeValueBasis = parseInt(inputs.customerLifetimeValue.value); 
+            
+            // Get renewal rates, treat as 0 if respective container is hidden
+            const year1RenewalRate = year1RenewalRateContainer.classList.contains('hidden') ? 0 : (parseFloat(inputs.year1RenewalRate.value) / 100 || 0);
+            const year2RenewalRate = year2RenewalRateContainer.classList.contains('hidden') ? 0 : (parseFloat(inputs.year2RenewalRate.value) / 100 || 0);
 
-            // --- Cost Calculations ---
-            const monthlySDRBaseSalaryCost = numberOfSDRs * sdrMonthlySalary;
-            const monthlySaasCost = numberOfSDRs * monthlySaasTools;
-            const monthlyRevUpForceCost = numberOfSDRs * revUpForceCostPerSDR;
-            const monthlyIlliciumCostActive = salesMgmtMonthlyCost;
-            const monthlyBaseCost = monthlySDRBaseSalaryCost + monthlySaasCost + monthlyRevUpForceCost;
-            const illiciumMonthsYear1 = includeFractionalSales ? Math.min(fractionalSalesDuration, 12) : 0;
-            const illiciumCostYear1 = illiciumMonthsYear1 * monthlyIlliciumCostActive;
-            const year1BaseInvestment = monthlyBaseCost * 12; // Investment excluding fractional mgmt
-            const year1Investment = year1BaseInvestment + illiciumCostYear1; // Total Y1 investment including fractional mgmt
-            const year2Investment = monthlyBaseCost * 12; // Year 2 Investment = Base costs only
-            const averageMonthlySDRCostY1 = monthlySDRBaseSalaryCost;
-            const averageMonthlySaaSCostY1 = monthlySaasCost;
-            const averageMonthlyTotalCostY1 = year1Investment > 0 ? year1Investment / 12 : 0;
-            const totalAnnualRevUpForceCost = monthlyRevUpForceCost * 12;
-            const totalIlliciumFractionalCost = includeFractionalSales ? salesMgmtMonthlyCost * fractionalSalesDuration : 0;
 
-            // --- Lead Generation Calculations ---
-            let monthlyLeadsArray = Array(24).fill(0);
-            let totalAnnualLeadsYear1 = 0;
-            const fullyRampedMonthlyLeads = numberOfSDRs * leadsPerSDRMonth;
-            const isRampingUp = !isTeamFullyRamped;
+            // --- Calculate Monthly Costs ---
+            const monthlySDRTeamTotalCompensation = numberOfSDRs * totalMonthlyCompPerSDR;
+            const monthlySDRTeamVariableCommission = numberOfSDRs * sdrVariableCommission;
+            const monthlySaaSTeamCost = numberOfSDRs * monthlySaasToolsPerSDR;
+            const monthlyHRPayrollOverheadsTeamCost = includeHRPayrollOverheads ? hrPayrollOverheadsPerSDR * numberOfSDRs : 0;
+            
+            const baseMonthlyCost = monthlySDRTeamTotalCompensation + monthlySaaSTeamCost + monthlyHRPayrollOverheadsTeamCost;
 
-            // UPDATED Ramp-up Logic (0 leads M1, 60% M2-4, 100% M5+)
-            if (isTeamFullyRamped) {
-                monthlyLeadsArray.fill(fullyRampedMonthlyLeads);
-            } else {
-                const rampingMonthlyLeads = fullyRampedMonthlyLeads * 0.6; // 60% productivity
-                for (let i = 0; i < 24; i++) {
-                    if (i === 0) { // Month 1 (index 0)
-                        monthlyLeadsArray[i] = 0; // Zero leads
-                    } else if (i >= 1 && i <= 3) { // Months 2-4 (indices 1-3)
-                        monthlyLeadsArray[i] = rampingMonthlyLeads; // 60% productivity
-                    } else { // Month 5 onwards (index 4+)
-                        monthlyLeadsArray[i] = fullyRampedMonthlyLeads; // 100% productivity
+            let year1MonthlyOperatingCosts = Array(12).fill(baseMonthlyCost);
+            let totalAnnualFractionalSalesCostY1 = 0;
+
+            if (includeFractionalSales) {
+                for (let m = 0; m < 4; m++) { 
+                    if (m < 12) { 
+                        year1MonthlyOperatingCosts[m] += monthlyFractionalOnboardingCost;
+                        totalAnnualFractionalSalesCostY1 += monthlyFractionalOnboardingCost;
+                    }
+                }
+                if (includeOngoingFractional) {
+                    for (let m = 0; m < ongoingFractionalDurationMonths; m++) {
+                        const currentOverallMonth = 4 + m; 
+                        if (currentOverallMonth < 12) { 
+                            year1MonthlyOperatingCosts[currentOverallMonth] += ongoingFractionalMonthlyCostValue;
+                            totalAnnualFractionalSalesCostY1 += ongoingFractionalMonthlyCostValue;
+                        }
                     }
                 }
             }
-            totalAnnualLeadsYear1 = monthlyLeadsArray.slice(0, 12).reduce((sum, leads) => sum + leads, 0);
+            
+            const year1Investment = year1MonthlyOperatingCosts.reduce((sum, cost) => sum + cost, 0);
+            
+            let year2FractionalOngoingCostTotal = 0;
+            if (includeFractionalSales && includeOngoingFractional) {
+                for (let m = 0; m < ongoingFractionalDurationMonths; m++) {
+                    const currentOverallMonthForY2Calc = 4 + m; 
+                    if (currentOverallMonthForY2Calc >= 12 && (currentOverallMonthForY2Calc - 12) < 12) { 
+                         year2FractionalOngoingCostTotal += ongoingFractionalMonthlyCostValue;
+                    }
+                }
+            }
+            const year2Investment = (baseMonthlyCost * 12) + year2FractionalOngoingCostTotal;
+
+
+            // --- Lead Generation ---
+            let monthlyLeadsArray = Array(24).fill(0); 
+            const fullyRampedMonthlyLeads = numberOfSDRs * leadsPerSDRMonth;
+            const isRampingUp = !isTeamFullyRamped;
+
+            if (isTeamFullyRamped) { 
+                monthlyLeadsArray.fill(fullyRampedMonthlyLeads); 
+            } else {
+                const rampingProductivity = 0.50; 
+                for (let i = 0; i < 24; i++) { 
+                    if (i < 3) { 
+                        monthlyLeadsArray[i] = fullyRampedMonthlyLeads * rampingProductivity;
+                    } else { 
+                        monthlyLeadsArray[i] = fullyRampedMonthlyLeads;
+                    }
+                }
+            }
+            const totalAnnualLeadsYear1 = monthlyLeadsArray.slice(0, 12).reduce((sum, leads) => sum + leads, 0);
             const annualPipelineYear1 = totalAnnualLeadsYear1 * averageDealSize;
 
-            // --- Revenue and Deal Closure Calculations ---
-            let monthlyDealsArray = Array(36).fill(0);
-            let monthlyRevenueArray = Array(36).fill(0);
-            for (let leadGenMonth = 0; leadGenMonth < 24; leadGenMonth++) {
-                const leadsInMonth = monthlyLeadsArray[leadGenMonth]; // Use the potentially adjusted leads array
+            // --- Revenue & Gross Profit Realization ---
+            let monthlyDealsArray = Array(36).fill(0); 
+            let monthlyRevenueArray = Array(36).fill(0); 
+            let monthlyGrossProfitArray = Array(36).fill(0); 
+
+            for (let leadGenMonth = 0; leadGenMonth < 24; leadGenMonth++) { 
+                const leadsInMonth = monthlyLeadsArray[leadGenMonth];
                 const dealsFromThisMonth = leadsInMonth * (leadConversionRate / 100);
                 const revenueFromThisMonth = dealsFromThisMonth * averageDealSize;
-                const revenueRealizationMonth = leadGenMonth + averageSalesCycle;
-                if (revenueRealizationMonth < monthlyRevenueArray.length) {
-                    monthlyDealsArray[revenueRealizationMonth] += dealsFromThisMonth;
-                    monthlyRevenueArray[revenueRealizationMonth] += revenueFromThisMonth;
+                const grossProfitFromThisMonth = revenueFromThisMonth * (averageGrossMargin / 100);
+                const realizationMonth = leadGenMonth + averageSalesCycle;
+
+                if (realizationMonth < monthlyRevenueArray.length) {
+                    monthlyDealsArray[realizationMonth] += dealsFromThisMonth;
+                    monthlyRevenueArray[realizationMonth] += revenueFromThisMonth;
+                    monthlyGrossProfitArray[realizationMonth] += grossProfitFromThisMonth;
                 }
             }
 
-            // --- Aggregate Year 1 and Year 2 Performance ---
-            let year1Deals = 0, year1Revenue = 0, year2Deals = 0, year2NewRevenue = 0;
-            for (let month = 0; month < 12; month++) {
-                year1Deals += monthlyDealsArray[month];
-                year1Revenue += monthlyRevenueArray[month];
+            let year1DealsClosed = 0, year1Revenue = 0, year1GrossProfit = 0;
+            let year2NewDealsClosed = 0, year2NewRevenue = 0, year2NewGrossProfit = 0;
+
+            for (let month = 0; month < 12; month++) { 
+                year1DealsClosed += monthlyDealsArray[month]; 
+                year1Revenue += monthlyRevenueArray[month]; 
+                year1GrossProfit += monthlyGrossProfitArray[month];
             }
-            for (let month = 12; month < 24; month++) {
-                year2Deals += monthlyDealsArray[month];
-                year2NewRevenue += monthlyRevenueArray[month];
+            for (let month = 12; month < 24; month++) { 
+                year2NewDealsClosed += monthlyDealsArray[month]; 
+                year2NewRevenue += monthlyRevenueArray[month]; 
+                year2NewGrossProfit += monthlyGrossProfitArray[month];
             }
 
-            // --- Unrealized Revenue Calculation ---
-            let unrealizedRevenueY2 = 0;
-             for (let leadGenMonth = 0; leadGenMonth < 12; leadGenMonth++) {
-                 const revenueRealizationMonth = leadGenMonth + averageSalesCycle;
-                 if (revenueRealizationMonth >= 12 && revenueRealizationMonth < 24) {
-                     const leadsInMonth = monthlyLeadsArray[leadGenMonth];
-                     const dealsFromThisMonth = leadsInMonth * (leadConversionRate / 100);
-                     unrealizedRevenueY2 += dealsFromThisMonth * averageDealSize;
-                 }
-             }
+            let unrealizedRevenueY2FromY1Leads = 0; 
+            for (let leadGenMonth = 0; leadGenMonth < 12; leadGenMonth++) { 
+                const revenueRealizationMonth = leadGenMonth + averageSalesCycle;
+                if (revenueRealizationMonth >= 12 && revenueRealizationMonth < 24) { 
+                    const leadsInGenMonth = monthlyLeadsArray[leadGenMonth];
+                    const dealsFromGenMonth = leadsInGenMonth * (leadConversionRate / 100);
+                    unrealizedRevenueY2FromY1Leads += dealsFromGenMonth * averageDealSize;
+                }
+            }
+            
+            // --- Renewals ---
+            const revenueFromY1ClosedDeals = year1DealsClosed * averageDealSize; 
+            const year1RenewalRevenueInY2 = revenueFromY1ClosedDeals * year1RenewalRate;
+            const year1RenewalGrossProfitInY2 = year1RenewalRevenueInY2 * (averageGrossMargin / 100);
 
-            // --- Breakeven Calculation ---
-            let cumulativeCost = 0, cumulativeRevenue = 0, breakevenMonth = -1;
-            for (let month = 0; month < 36; month++) {
-                let costThisMonth = monthlyBaseCost;
-                if (includeFractionalSales && month < illiciumMonthsYear1) {
-                    costThisMonth += monthlyIlliciumCostActive;
+            const year2TotalRevenue = year2NewRevenue + year1RenewalRevenueInY2; 
+            const year2TotalGrossProfit = year2NewGrossProfit + year1RenewalGrossProfitInY2; 
+
+            // --- Net Profit ---
+            const year1NetProfit = year1GrossProfit - year1Investment;
+            const year2NetProfit = year2TotalGrossProfit - year2Investment;
+
+            // --- Breakeven Calculation & Chart Data ---
+            let cumulativeCost = 0, cumulativeGrossProfitForBreakeven = 0, breakevenMonth = -1;
+            const chartLabels = Array.from({ length: 12 }, (_, i) => `M${i + 1}`);
+            const cumulativeInvestmentDataY1 = Array(12).fill(0);
+            const cumulativeGrossProfitDataY1 = Array(12).fill(0); 
+            const cumulativeNetProfitDataY1 = Array(12).fill(0); 
+
+            for (let month = 0; month < 36; month++) { 
+                let costThisMonth;
+                if (month < 12) { 
+                    costThisMonth = year1MonthlyOperatingCosts[month];
+                } else { 
+                    let ongoingFractionalForMonthY2Plus = 0;
+                    if(includeFractionalSales && includeOngoingFractional){
+                        const ongoingSupportStartMonthOverall = 4; 
+                        const ongoingSupportEndMonthOverall = 4 + ongoingFractionalDurationMonths -1;
+                        if(month >= ongoingSupportStartMonthOverall && month <= ongoingSupportEndMonthOverall) { 
+                             ongoingFractionalForMonthY2Plus = ongoingFractionalMonthlyCostValue;
+                        }
+                    }
+                     costThisMonth = baseMonthlyCost + ongoingFractionalForMonthY2Plus; 
                 }
                 cumulativeCost += costThisMonth;
-                cumulativeRevenue += monthlyRevenueArray[month]; // Uses revenue based on potentially adjusted leads
-                if (cumulativeRevenue >= cumulativeCost && breakevenMonth === -1) {
-                    breakevenMonth = month + 1;
+                
+                cumulativeGrossProfitForBreakeven += monthlyGrossProfitArray[month]; 
+                if (month >= 12 && month < 24) { 
+                     cumulativeGrossProfitForBreakeven += (year1RenewalGrossProfitInY2 / 12); 
+                }
+                
+                if (month < 12) { 
+                    cumulativeInvestmentDataY1[month] = cumulativeCost; 
+                    cumulativeGrossProfitDataY1[month] = monthlyGrossProfitArray.slice(0, month + 1).reduce((a, b) => a + b, 0); 
+                    cumulativeNetProfitDataY1[month] = cumulativeGrossProfitDataY1[month] - cumulativeInvestmentDataY1[month];
+                }
+
+                if (cumulativeGrossProfitForBreakeven >= cumulativeCost && breakevenMonth === -1) { 
+                    breakevenMonth = month + 1; 
                 }
             }
             const displayBreakeven = breakevenMonth === -1 ? "36+" : breakevenMonth;
 
-            // --- First Revenue Calculation ---
+
+            // --- First Revenue ---
             let firstRevenueMonth = 0, firstRevenueAmount = 0;
             for (let month = 0; month < monthlyRevenueArray.length; month++) {
-                if (monthlyRevenueArray[month] > 0) {
-                    firstRevenueMonth = month + 1;
-                    firstRevenueAmount = monthlyRevenueArray[month];
-                    break;
-                }
+                if (monthlyRevenueArray[month] > 0) { firstRevenueMonth = month + 1; firstRevenueAmount = monthlyRevenueArray[month]; break; }
+            }
+            
+            // --- Projected LTV Gross Profit Calculation (using renewal rates) ---
+            const initialDealGrossProfit = averageDealSize * (averageGrossMargin / 100);
+            let year1LTVGrossProfit = 0;
+            let year2LTVGrossProfit = 0; 
+
+            if (customerLifetimeValueBasis === 12) {
+                year1LTVGrossProfit = year1DealsClosed * initialDealGrossProfit;
+                year2LTVGrossProfit = year2NewDealsClosed * initialDealGrossProfit;
+            } else if (customerLifetimeValueBasis === 18) {
+                year1LTVGrossProfit = year1DealsClosed * initialDealGrossProfit * (1 + year1RenewalRate * 0.5);
+                year2LTVGrossProfit = year2NewDealsClosed * initialDealGrossProfit * (1 + year1RenewalRate * 0.5); 
+            } else if (customerLifetimeValueBasis === 24) {
+                year1LTVGrossProfit = year1DealsClosed * initialDealGrossProfit * (1 + year1RenewalRate);
+                year2LTVGrossProfit = year2NewDealsClosed * initialDealGrossProfit * (1 + year1RenewalRate); 
+            } else if (customerLifetimeValueBasis === 36) {
+                const firstRenewalComponentY1 = year1RenewalRate;
+                const secondRenewalComponentY1 = year1RenewalRate * year2RenewalRate;
+                year1LTVGrossProfit = year1DealsClosed * initialDealGrossProfit * (1 + firstRenewalComponentY1 + secondRenewalComponentY1);
+
+                const firstRenewalComponentY2 = year1RenewalRate; 
+                const secondRenewalComponentY2 = year1RenewalRate * year2RenewalRate; 
+                year2LTVGrossProfit = year2NewDealsClosed * initialDealGrossProfit * (1 + firstRenewalComponentY2 + secondRenewalComponentY2);
             }
 
-            // --- LTV and Renewal Calculations ---
-            let year1RenewalRevenue = 0, lifetimeMultiplier = 1;
-            const customerLifetimeValueNum = parseInt(customerLifetimeValue);
-            if (!isNaN(customerLifetimeValueNum) && customerLifetimeValueNum > 12) {
-                if (customerLifetimeValueNum === 18) {
-                    year1RenewalRevenue = year1Deals * averageDealSize * 0.5;
-                    lifetimeMultiplier = 1.5;
-                } else if (customerLifetimeValueNum === 24) {
-                    year1RenewalRevenue = year1Deals * averageDealSize * 1.0;
-                    lifetimeMultiplier = 2;
-                }
-            }
-            const year2TotalRevenue = year2NewRevenue + year1RenewalRevenue;
 
-            // --- Cost Per Metrics (Based on Year 1 BASE Investment) ---
-            const costPerLead = totalAnnualLeadsYear1 > 0 ? year1BaseInvestment / totalAnnualLeadsYear1 : 0;
-            const costPerAcquisition = year1Deals > 0 ? year1BaseInvestment / year1Deals : 0;
+            // --- Final Metrics ---
+            const costPerLead = totalAnnualLeadsYear1 > 0 ? year1Investment / totalAnnualLeadsYear1 : 0;
+            const costPerAcquisition = year1DealsClosed > 0 ? year1Investment / year1DealsClosed : 0;
+            
+            const year1ROI = year1Investment > 0 ? (year1NetProfit / year1Investment) * 100 : 0;
+            const year2ROI = year2Investment > 0 ? (year2NetProfit / year2Investment) * 100 : 0;
+            
+            const lifetimeROI_Year1 = year1Investment > 0 ? ((year1LTVGrossProfit - year1Investment) / year1Investment) * 100 : 0; 
+            const lifetimeROI_Year2 = year2Investment > 0 ? ((year2LTVGrossProfit - year2Investment) / year2Investment) * 100 : 0; 
 
-            // --- ROI Calculations ---
-            const year1Profit = year1Revenue - year1Investment;
-            const year1ROI = year1Investment > 0 ? (year1Profit / year1Investment) * 100 : 0;
-            const year2Profit = year2TotalRevenue - year2Investment;
-            const year2ROI = year2Investment > 0 ? (year2Profit / year2Investment) * 100 : 0;
-
-            // --- Lifetime Value Adjusted Metrics ---
-            const year1CustomerValue = year1Deals * averageDealSize * lifetimeMultiplier;
-            const year2CustomerValue = year2Deals * averageDealSize * lifetimeMultiplier;
-            const lifetimeROI_Year1 = year1Investment > 0 ? ((year1CustomerValue - year1Investment) / year1Investment) * 100 : 0;
-            const lifetimeROI_Year2 = year2Investment > 0 ? ((year2CustomerValue - year2Investment) / year2Investment) * 100 : 0;
-
-            // --- Update Output Elements in the HTML ---
-            // Lead Gen & Costs
-            // UPDATED: Calculate average monthly leads considering the new ramp-up
-            let avgMonthlyLeadsDisplay = fullyRampedMonthlyLeads;
-            if (isRampingUp) {
-                 // Average of month 2 (index 1 = 60%) and month 5 (index 4 = 100%)
-                 avgMonthlyLeadsDisplay = (monthlyLeadsArray[1] + monthlyLeadsArray[4]) / 2;
-            }
-            outputs.monthlyLeads.textContent = formatNumber(Math.round(avgMonthlyLeadsDisplay));
+            // --- Update UI ---
+            outputs.totalSDRCompensationPerSDR.textContent = '$' + formatNumber(Math.round(totalMonthlyCompPerSDR));
+            outputs.monthlyLeads.textContent = formatNumber(Math.round(isRampingUp ? (monthlyLeadsArray.slice(0,3).reduce((a,b)=>a+b,0)/3 + monthlyLeadsArray[3])/2 : fullyRampedMonthlyLeads)); 
             outputs.monthlyLeadsNote.classList.toggle('hidden', !isRampingUp);
             outputs.annualLeads.textContent = formatNumber(Math.round(totalAnnualLeadsYear1));
             outputs.annualLeadsNote.classList.toggle('hidden', !isRampingUp);
             outputs.costPerLead.textContent = '$' + formatNumber(Math.round(costPerLead));
             outputs.costPerAcquisition.textContent = '$' + formatNumber(Math.round(costPerAcquisition));
-            const showCplCpaNote = includeFractionalSales && illiciumCostYear1 > 0;
-            outputs.cplNote.classList.toggle('hidden', !showCplCpaNote);
-            outputs.cpaNote.classList.toggle('hidden', !showCplCpaNote);
+            outputs.cplNote.textContent = numberOfSDRs > 0 ? "(Y1 Total Inv. / Y1 Leads)" : "(N/A)";
+            outputs.cpaNote.textContent = numberOfSDRs > 0 ? "(Y1 Total Inv. / Y1 New Deals)" : "(N/A)";
 
-
-            // Y1 Performance
             outputs.annualPipeline.textContent = '$' + formatNumber(Math.round(annualPipelineYear1));
-            outputs.firstRevenueMonth.textContent = formatNumber(firstRevenueMonth);
-            outputs.firstRevenueAmount.textContent = formatNumber(Math.round(firstRevenueAmount));
+            outputs.firstRevenueMonth.textContent = firstRevenueMonth > 0 ? formatNumber(firstRevenueMonth) : '--';
+            outputs.firstRevenueAmount.textContent = formatNumber(Math.round(firstRevenueAmount)); 
             outputs.salesCycleDisplay.textContent = averageSalesCycle;
-            outputs.year1Deals.textContent = formatNumber(Math.round(year1Deals));
+            outputs.year1Deals.textContent = formatNumber(Math.round(year1DealsClosed));
             outputs.conversionRateDisplay.textContent = leadConversionRate;
             outputs.year1Revenue.textContent = '$' + formatNumber(Math.round(year1Revenue));
-            outputs.unrealizedRevenueY2.textContent = '$' + formatNumber(Math.round(unrealizedRevenueY2));
+            outputs.year1GrossProfit.textContent = '$' + formatNumber(Math.round(year1GrossProfit));
+            outputs.grossMarginDisplayY1.textContent = averageGrossMargin;
+            outputs.unrealizedRevenueY2.textContent = '$' + formatNumber(Math.round(unrealizedRevenueY2FromY1Leads));
 
-            // Y2 Performance
-            outputs.year2Deals.textContent = formatNumber(Math.round(year2Deals));
-            outputs.year2Revenue.textContent = '$' + formatNumber(Math.round(year2NewRevenue));
-            outputs.renewalSection.classList.toggle('hidden', year1RenewalRevenue <= 0);
-            outputs.year1RenewalRevenue.textContent = '$' + formatNumber(Math.round(year1RenewalRevenue));
-            outputs.ltvDisplayRenewal.textContent = customerLifetimeValueNum;
-            outputs.year2TotalRevenue.textContent = '$' + formatNumber(Math.round(year2TotalRevenue));
+            outputs.year2Deals.textContent = formatNumber(Math.round(year2NewDealsClosed)); 
+            outputs.year2Revenue.textContent = '$' + formatNumber(Math.round(year2NewRevenue)); 
+            outputs.year1RenewalRevenue.textContent = '$' + formatNumber(Math.round(year1RenewalRevenueInY2));
+            outputs.year1RenewalRateDisplay.textContent = parseFloat(inputs.year1RenewalRate.value); 
+            outputs.year2TotalRevenue.textContent = '$' + formatNumber(Math.round(year2TotalRevenue)); 
+            outputs.year2GrossProfit.textContent = '$' + formatNumber(Math.round(year2TotalGrossProfit)); 
+            outputs.grossMarginDisplayY2.textContent = averageGrossMargin; 
 
-            // Financial Analysis
-            outputs.monthlySDRCost.textContent = '$' + formatNumber(Math.round(averageMonthlySDRCostY1));
-            outputs.monthlySaaSCost.textContent = '$' + formatNumber(Math.round(averageMonthlySaaSCostY1));
-            outputs.illiciumInvestmentSection.style.display = (includeFractionalSales || monthlyRevUpForceCost > 0) ? 'block' : 'none';
-            outputs.totalRevupCost.textContent = '$' + formatNumber(Math.round(totalAnnualRevUpForceCost));
-            outputs.sdrCountRevup.textContent = numberOfSDRs;
-            outputs.revupCostPerSDR.textContent = formatNumber(revUpForceCostPerSDR);
-            outputs.illiciumFracTotalCostSection.style.display = includeFractionalSales ? 'block' : 'none';
-            outputs.totalIlliciumMgmtCost.textContent = '$' + formatNumber(Math.round(totalIlliciumFractionalCost));
-            outputs.illiciumMgmtCalcNote.textContent = `($${formatNumber(salesMgmtMonthlyCost)}/mo x ${fractionalSalesDuration} months)`;
-            outputs.monthlyTotalCost.textContent = '$' + formatNumber(Math.round(averageMonthlyTotalCostY1));
-            outputs.annualInvestment.textContent = '$' + formatNumber(Math.round(year1Investment)); // Display Y1 Investment here
-            outputs.fractionalCostY1Note.style.display = includeFractionalSales && illiciumCostYear1 > 0 ? 'block' : 'none';
-            outputs.fractionalCostY1.textContent = formatNumber(Math.round(illiciumCostYear1));
+            outputs.monthlySDRCompensationTeam.textContent = '$' + formatNumber(Math.round(monthlySDRTeamTotalCompensation));
+            outputs.avgMonthlySDRTeamVariableComp.textContent = '$' + formatNumber(Math.round(monthlySDRTeamVariableCommission));
+            outputs.monthlySaaSCostTeam.textContent = '$' + formatNumber(Math.round(monthlySaaSTeamCost));
+            
+            const showOverheadsSection = includeFractionalSales || includeHRPayrollOverheads;
+            outputs.operationalOverheadsSection.style.display = showOverheadsSection ? 'block' : 'none';
+            outputs.operationalOverheadsSeparator.style.display = showOverheadsSection ? 'block' : 'none';
+
+            outputs.totalFractionalSalesCostSection.style.display = includeFractionalSales ? 'block' : 'none';
+            outputs.totalAnnualFractionalSalesCost.textContent = '$' + formatNumber(Math.round(totalAnnualFractionalSalesCostY1));
+            outputs.fractionalSalesCostCalcNote.textContent = `(Onboarding + Y1 Ongoing)`;
+
+            outputs.totalHRPayrollOverheadsSection.style.display = includeHRPayrollOverheads ? 'block' : 'none';
+            outputs.totalAnnualHRPayrollOverheads.textContent = '$' + formatNumber(Math.round(monthlyHRPayrollOverheadsTeamCost * 12));
+            outputs.hrPayrollOverheadsCalcNote.textContent = `($${formatNumber(hrPayrollOverheadsPerSDR)}/SDR/mo x ${numberOfSDRs} SDRs x 12)`;
+
+            outputs.monthlyTotalCost.textContent = '$' + formatNumber(Math.round(year1Investment / 12)); 
+            outputs.monthlyTotalCostNote.textContent = numberOfSDRs > 0 ? "(Avg. SDR Comp + SaaS + Opt. Overheads)" : "(N/A)";
+            outputs.annualInvestment.textContent = '$' + formatNumber(Math.round(year1Investment));
             outputs.monthsToBreakeven.textContent = displayBreakeven;
 
-            // ROI Section - UPDATED ORDER & STYLING
-            outputs.year1InvestmentDisplayROI.textContent = '$' + formatNumber(Math.round(year1Investment)); // 1st Item
-            outputs.year1ROI.textContent = formatNumber(Math.round(year1ROI)) + '%'; // 2nd Item
-            outputs.year1RevenueDisplay.textContent = '$' + formatNumber(Math.round(year1Revenue)); // 3rd Item
-            outputs.lifetimeROI1Section.classList.toggle('hidden', lifetimeMultiplier <= 1); // 4th Item
-            outputs.lifetimeROI_Year1.textContent = formatNumber(Math.round(lifetimeROI_Year1)) + '%';
-            outputs.ltvDisplayROI1.textContent = customerLifetimeValueNum;
-            outputs.lifetimeValue1Section.classList.toggle('hidden', lifetimeMultiplier <= 1); // 5th Item
-            outputs.year1CustomerValue.textContent = '$' + formatNumber(Math.round(year1CustomerValue));
+            // ROI Section Update
+            outputs.year1InvestmentDisplayROI.textContent = '$' + formatNumber(Math.round(year1Investment));
+            outputs.year1GrossProfitDisplayROI.textContent = '$' + formatNumber(Math.round(year1GrossProfit)); 
+            outputs.year1NetProfit.textContent = '$' + formatNumber(Math.round(year1NetProfit));
+            outputs.year1ROI.textContent = formatPercentage(year1ROI);
+            
+            const isLtvApplicable = customerLifetimeValueBasis > 12;
+            outputs.lifetimeValue1Section.classList.toggle('hidden', !isLtvApplicable);
+            outputs.year1CustomerLTVGrossProfit.textContent = '$' + formatNumber(Math.round(year1LTVGrossProfit));
+            outputs.ltvDisplayValue1.textContent = customerLifetimeValueBasis;
+            outputs.lifetimeROI1Section.classList.toggle('hidden', !isLtvApplicable);
+            outputs.lifetimeROI_Year1.textContent = formatPercentage(lifetimeROI_Year1);
 
-            outputs.year2InvestmentDisplayROI.textContent = '$' + formatNumber(Math.round(year2Investment)); // 1st Item
-            outputs.year2ROI.textContent = formatNumber(Math.round(year2ROI)) + '%'; // 2nd Item
-            outputs.year2TotalRevenueDisplay.textContent = '$' + formatNumber(Math.round(year2TotalRevenue)); // 3rd Item
-            outputs.lifetimeROI2Section.classList.toggle('hidden', lifetimeMultiplier <= 1); // 4th Item
-            outputs.lifetimeROI_Year2.textContent = formatNumber(Math.round(lifetimeROI_Year2)) + '%';
-            outputs.ltvDisplayROI2.textContent = customerLifetimeValueNum;
-            outputs.lifetimeValue2Section.classList.toggle('hidden', lifetimeMultiplier <= 1); // 5th Item
-            outputs.year2CustomerValue.textContent = '$' + formatNumber(Math.round(year2CustomerValue));
+            outputs.year2InvestmentDisplayROI.textContent = '$' + formatNumber(Math.round(year2Investment));
+            outputs.year2GrossProfitDisplayROI.textContent = '$' + formatNumber(Math.round(year2TotalGrossProfit)); 
+            outputs.year2NetProfit.textContent = '$' + formatNumber(Math.round(year2NetProfit));
+            outputs.year2ROI.textContent = formatPercentage(year2ROI);
+            outputs.year2InvestmentNote.textContent = numberOfSDRs > 0 ? "(SDR Comp + SaaS + Opt. Overheads)" : "(N/A)";
+            
+            outputs.lifetimeValue2Section.classList.toggle('hidden', !isLtvApplicable);
+            outputs.year2CustomerLTVGrossProfit.textContent = '$' + formatNumber(Math.round(year2LTVGrossProfit));
+            outputs.ltvDisplayValue2.textContent = customerLifetimeValueBasis;
+            outputs.lifetimeROI2Section.classList.toggle('hidden', !isLtvApplicable);
+            outputs.lifetimeROI_Year2.textContent = formatPercentage(lifetimeROI_Year2);
 
-            // Update dynamic values in the explanation section
             expSalesCycle.textContent = averageSalesCycle;
             expConversionRate.textContent = leadConversionRate;
+
+            updateYear1FinancialChart(chartLabels, cumulativeInvestmentDataY1, cumulativeGrossProfitDataY1, cumulativeNetProfitDataY1, displayBreakeven);
+            updateYear1ROIPercentageChart(year1ROI, lifetimeROI_Year1, year1Investment, isLtvApplicable);
+            updateYear2ROIPercentageChart(year2ROI, lifetimeROI_Year2, year2Investment, isLtvApplicable);
         }
 
-        // --- PDF Generation Logic ---
+        // --- PDF Generation ---
         function generatePdf() {
-             console.log("Generating PDF...");
-             if (!window.jspdf || !window.html2canvas) {
-                 console.error("jsPDF or html2canvas not loaded!");
-                 alert("Error: PDF generation library not loaded.");
-                 return;
-             }
-             const { jsPDF } = window.jspdf;
-             const elementToCapture = pdfContentArea;
-             const options = {
-                 scale: 2,
-                 useCORS: true,
-                 logging: true,
-                 backgroundColor: '#ffffff'
-             };
-             html2canvas(elementToCapture, options).then(canvas => {
-                 console.log("Canvas generated by html2canvas");
-                 const imgData = canvas.toDataURL('image/png');
-                 const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
-                 const pdfWidth = pdf.internal.pageSize.getWidth();
-                 const pdfHeight = pdf.internal.pageSize.getHeight();
-                 const canvasWidth = canvas.width;
-                 const canvasHeight = canvas.height;
-                 const ratio = canvasWidth / canvasHeight;
-                 const margin = 10;
-                 let imgWidth = pdfWidth - (margin * 2);
-                 let imgHeight = imgWidth / ratio;
-                 let pageHeightWithMargin = pdfHeight - (margin * 2);
-                 if (imgHeight > pageHeightWithMargin) {
-                     imgHeight = pageHeightWithMargin;
-                     imgWidth = imgHeight * ratio;
-                 }
-                 const x = margin;
-                 const y = margin;
-                 console.log(`Adding image to PDF: width=${imgWidth.toFixed(2)}mm, height=${imgHeight.toFixed(2)}mm at x=${x.toFixed(2)}, y=${y.toFixed(2)}`);
-                 pdf.addImage(imgData, 'PNG', x, y, imgWidth, imgHeight);
-                 pdf.save('RevupForge_ROI_Results.pdf');
-                 console.log("PDF saved");
-             }).catch(error => {
-                 console.error("Error generating PDF: ", error);
-                 alert("Sorry, there was an error generating the PDF. Please check the console for details.");
-             });
+            if (!window.jspdf || !window.html2canvas) { showErrorMessage("PDF library not loaded."); return; }
+            const { jsPDF } = window.jspdf;
+            const elementToCapture = pdfContentArea;
+            const explanationWasHidden = !explanationContent.classList.contains('show');
+            if (explanationWasHidden) { explanationContent.classList.add('show'); } 
+            const options = { scale: 2, useCORS: true, logging: false, backgroundColor: '#ffffff', scrollX: 0, scrollY: -window.scrollY, windowWidth: elementToCapture.scrollWidth, windowHeight: elementToCapture.scrollHeight };
+            html2canvas(elementToCapture, options).then(canvas => {
+                const imgData = canvas.toDataURL('image/png', 1.0);
+                const pdf = new jsPDF({ orientation: 'p', unit: 'mm', format: 'a4' });
+                const pdfWidth = pdf.internal.pageSize.getWidth(); const pdfHeight = pdf.internal.pageSize.getHeight(); const margin = 10;
+                const imgWidth = canvas.width; const imgHeight = canvas.height; const aspectRatio = imgWidth / imgHeight;
+                let pdfImgWidth = pdfWidth - (2 * margin); let pdfImgHeight = pdfImgWidth / aspectRatio;
+                let totalPdfPages = Math.ceil(pdfImgHeight / (pdfHeight - (2 * margin))); if (totalPdfPages === 0) totalPdfPages = 1;
+                let currentYOnCanvas = 0;
+                for (let i = 0; i < totalPdfPages; i++) {
+                    if (i > 0) pdf.addPage();
+                    let sliceHeightOnCanvas = (pdfHeight - 2 * margin) * (imgHeight / pdfImgHeight); 
+                    if (currentYOnCanvas + sliceHeightOnCanvas > imgHeight) { sliceHeightOnCanvas = imgHeight - currentYOnCanvas; }
+                    const tempCanvas = document.createElement('canvas'); tempCanvas.width = imgWidth; tempCanvas.height = sliceHeightOnCanvas;
+                    const tempCtx = tempCanvas.getContext('2d');
+                    tempCtx.drawImage(canvas, 0, currentYOnCanvas, imgWidth, sliceHeightOnCanvas, 0, 0, imgWidth, sliceHeightOnCanvas);
+                    const sliceImgData = tempCanvas.toDataURL('image/png', 1.0);
+                    let slicePdfHeight = pdfImgWidth / (imgWidth / sliceHeightOnCanvas); 
+                    if (slicePdfHeight > pdfHeight - 2 * margin) { slicePdfHeight = pdfHeight - 2 * margin; } 
+                    pdf.addImage(sliceImgData, 'PNG', margin, margin, pdfImgWidth, slicePdfHeight);
+                    currentYOnCanvas += sliceHeightOnCanvas;
+                    if (currentYOnCanvas >= imgHeight) break;
+                }
+                if (explanationWasHidden) { explanationContent.classList.remove('show'); } 
+                pdf.save('SalesDevTeam_ROI_Results.pdf'); 
+            }).catch(error => { console.error("Error PDF: ", error); showErrorMessage("Could not generate PDF."); if (explanationWasHidden) { explanationContent.classList.remove('show'); } });
         }
+        
+        // --- Function to update visibility of renewal rate inputs ---
+        function updateRenewalInputVisibility() {
+            const ltvBasis = parseInt(inputs.customerLifetimeValue.value);
+            
+            // Year 1 Renewal Rate
+            if (ltvBasis > 12) {
+                year1RenewalRateContainer.classList.remove('hidden');
+                inputs.year1RenewalRate.disabled = false;
+            } else {
+                year1RenewalRateContainer.classList.add('hidden');
+                inputs.year1RenewalRate.disabled = true;
+                // inputs.year1RenewalRate.value = "70"; // Reset to default if hidden
+            }
+
+            // Year 2 Renewal Rate
+            if (ltvBasis > 24) { // Only show for 36 months LTV
+                year2RenewalRateContainer.classList.remove('hidden');
+                inputs.year2RenewalRate.disabled = false;
+            } else {
+                year2RenewalRateContainer.classList.add('hidden');
+                inputs.year2RenewalRate.disabled = true;
+                // inputs.year2RenewalRate.value = "50"; // Reset to default if hidden
+            }
+            calculateROI(); // Recalculate when visibility changes
+        }
+
 
         // --- Event Listeners ---
-        form.addEventListener('input', calculateROI);
-        form.addEventListener('change', calculateROI);
-        inputs.includeFractionalSales.addEventListener('change', () => {
-            const isDisabled = !inputs.includeFractionalSales.checked;
-            inputs.salesMgmtMonthlyCost.disabled = isDisabled;
-            inputs.fractionalSalesDuration.disabled = isDisabled;
-            fractionalInputsContainer.classList.toggle('illicium-inputs-disabled', isDisabled);
+        form.addEventListener('input', calculateROI); // General input recalculates
+        form.addEventListener('change', calculateROI); // General change recalculates
+
+        inputs.sdrMonthlySalary.addEventListener('input', () => {
+            const sdrSalary = parseFloat(inputs.sdrMonthlySalary.value) || 0;
+            // Optional: Auto-update commission based on salary if a rule is desired
+            // inputs.sdrVariableCommission.value = (sdrSalary * 0.40).toFixed(0); // Example: 40% of salary
+            calculateROI(); 
+        });
+        
+        // Specific listener for LTV basis dropdown to control renewal input visibility
+        inputs.customerLifetimeValue.addEventListener('change', updateRenewalInputVisibility);
+
+
+        inputs.includeFractionalSalesManagement.addEventListener('change', () => { 
+            const isFractionalSectionDisabled = !inputs.includeFractionalSalesManagement.checked;
+            fractionalSalesInputsContainer.classList.toggle('hidden', isFractionalSectionDisabled);
+            fractionalSalesInputsContainer.classList.toggle('inputs-disabled', isFractionalSectionDisabled);
+
+            inputs.fractionalOnboardingCost.disabled = isFractionalSectionDisabled;
+            inputs.includeOngoingFractionalSupport.disabled = isFractionalSectionDisabled;
+            
+            const isOngoingDisabled = isFractionalSectionDisabled || !inputs.includeOngoingFractionalSupport.checked;
+            inputs.ongoingFractionalDuration.disabled = isOngoingDisabled;
+            inputs.ongoingFractionalMonthlyCost.disabled = isOngoingDisabled;
+            ongoingFractionalSupportContainer.classList.toggle('hidden', isOngoingDisabled);
+            ongoingFractionalSupportContainer.classList.toggle('inputs-disabled', isOngoingDisabled);
+
+
+            if (isFractionalSectionDisabled) { 
+                inputs.fractionalOnboardingCost.value = "3750"; 
+                inputs.includeOngoingFractionalSupport.checked = false; 
+                inputs.ongoingFractionalDuration.value = "6"; 
+                inputs.ongoingFractionalMonthlyCost.value = "2750"; 
+            }
+             const isOngoingSupportChecked = inputs.includeOngoingFractionalSupport.checked;
+             ongoingFractionalSupportContainer.classList.toggle('hidden', !isOngoingSupportChecked || isFractionalSectionDisabled);
+             ongoingFractionalSupportContainer.classList.toggle('inputs-disabled', !isOngoingSupportChecked || isFractionalSectionDisabled);
+
             calculateROI();
         });
+
+        inputs.includeOngoingFractionalSupport.addEventListener('change', () => {
+            const isFractionalEnabled = inputs.includeFractionalSalesManagement.checked;
+            const isOngoingChecked = inputs.includeOngoingFractionalSupport.checked;
+            const isOngoingSectionDisabled = !isFractionalEnabled || !isOngoingChecked;
+
+            ongoingFractionalSupportContainer.classList.toggle('hidden', isOngoingSectionDisabled);
+            ongoingFractionalSupportContainer.classList.toggle('inputs-disabled', isOngoingSectionDisabled);
+            inputs.ongoingFractionalDuration.disabled = isOngoingSectionDisabled;
+            inputs.ongoingFractionalMonthlyCost.disabled = isOngoingSectionDisabled;
+
+            if (!isOngoingChecked) {
+                inputs.ongoingFractionalDuration.value = "6"; 
+                inputs.ongoingFractionalMonthlyCost.value = "2750"; 
+            }
+            calculateROI();
+        });
+
+        inputs.includeHRPayrollOverheads.addEventListener('change', () => {
+            const isDisabled = !inputs.includeHRPayrollOverheads.checked;
+            hrPayrollInputsContainer.classList.toggle('hidden', isDisabled);
+            hrPayrollInputsContainer.classList.toggle('inputs-disabled', isDisabled);
+            inputs.hrPayrollOverheadsPerSDR.disabled = isDisabled;
+            if (isDisabled) { inputs.hrPayrollOverheadsPerSDR.value = "575"; }
+            calculateROI();
+        });
+
         inputs.isTeamFullyRamped.addEventListener('change', () => {
             rampUpNote.classList.toggle('hidden', inputs.isTeamFullyRamped.checked);
             calculateROI();
         });
+
         toggleExplanationsButton.addEventListener('click', () => {
-            const isShown = explanationContent.classList.toggle('show');
-            toggleExplanationsButton.textContent = isShown ? "Hide Calculation Explanations" : "Show Calculation Explanations";
+            explanationContent.classList.toggle('show');
+            toggleExplanationsButton.textContent = explanationContent.classList.contains('show') ? 'Hide Calculation Explanations' : 'Show Calculation Explanations';
         });
+
         downloadPdfButton.addEventListener('click', generatePdf);
 
-        // --- Initial Calculation on Load ---
-        function initializeUIState() {
-            // Set initial disabled state for Illicium inputs
-            const isIlliciumDisabled = !inputs.includeFractionalSales.checked; // Reflects new default
-            inputs.salesMgmtMonthlyCost.disabled = isIlliciumDisabled;
-            inputs.fractionalSalesDuration.disabled = isIlliciumDisabled;
-            fractionalInputsContainer.classList.toggle('illicium-inputs-disabled', isIlliciumDisabled);
-            // Set initial visibility for ramp-up note
+        // --- Initial Setup ---
+        function initializeCalculator() {
+            // Set default state for conditional sections based on initial checkbox states
+            const isFractionalInitiallyDisabled = !inputs.includeFractionalSalesManagement.checked;
+            fractionalSalesInputsContainer.classList.toggle('hidden', isFractionalInitiallyDisabled);
+            fractionalSalesInputsContainer.classList.toggle('inputs-disabled', isFractionalInitiallyDisabled);
+            inputs.fractionalOnboardingCost.disabled = isFractionalInitiallyDisabled;
+            inputs.includeOngoingFractionalSupport.disabled = isFractionalInitiallyDisabled;
+
+            const isOngoingInitiallyDisabled = isFractionalInitiallyDisabled || !inputs.includeOngoingFractionalSupport.checked;
+            ongoingFractionalSupportContainer.classList.toggle('hidden', isOngoingInitiallyDisabled);
+            ongoingFractionalSupportContainer.classList.toggle('inputs-disabled', isOngoingInitiallyDisabled);
+            inputs.ongoingFractionalDuration.disabled = isOngoingInitiallyDisabled;
+            inputs.ongoingFractionalMonthlyCost.disabled = isOngoingInitiallyDisabled;
+
+            const isHRInitiallyDisabled = !inputs.includeHRPayrollOverheads.checked;
+            hrPayrollInputsContainer.classList.toggle('hidden', isHRInitiallyDisabled);
+            hrPayrollInputsContainer.classList.toggle('inputs-disabled', isHRInitiallyDisabled);
+            inputs.hrPayrollOverheadsPerSDR.disabled = isHRInitiallyDisabled;
+
             rampUpNote.classList.toggle('hidden', inputs.isTeamFullyRamped.checked);
-            // Perform initial calculation to populate results
-            calculateROI();
+            updateRenewalInputVisibility(); // This will also trigger the first calculation
         }
-        document.addEventListener('DOMContentLoaded', initializeUIState);
+
+        // Initialize the calculator on page load
+        window.onload = initializeCalculator;
 
     </script>
-
 </body>
 </html>
